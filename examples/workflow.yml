@@ -1,0 +1,45 @@
+name: Copilot Budget Guardian Example
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-guardian:
+    name: Run Copilot Budget Guardian
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run GitHub Copilot Budget Guardian
+        id: guardian
+        uses: ./
+        with:
+          github-token: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
+          enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
+          budget-file: examples/budgets.csv
+          dry-run: "false"
+          report-format: markdown
+          alert-threshold: "80"
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          teams-webhook: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+      - name: Display action outputs
+        run: |
+          echo "created=${{ steps.guardian.outputs.created }}"
+          echo "updated=${{ steps.guardian.outputs.updated }}"
+          echo "skipped=${{ steps.guardian.outputs.skipped }}"
+          echo "failed=${{ steps.guardian.outputs.failed }}"
+
+          {
+            echo "## Copilot Budget Guardian Results"
+            echo "- Created: ${{ steps.guardian.outputs.created }}"
+            echo "- Updated: ${{ steps.guardian.outputs.updated }}"
+            echo "- Skipped: ${{ steps.guardian.outputs.skipped }}"
+            echo "- Failed: ${{ steps.guardian.outputs.failed }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,21 +1,38 @@
 {
   "name": "github-copilot-budget-guardian",
   "version": "1.0.0",
+  "description": "Enterprise GitHub Action for GitHub Copilot budget governance, validation, synchronization, and reporting.",
+  "author": "Kuldeep Saini",
+  "license": "MIT",
+  "keywords": [
+    "github-action",
+    "github-marketplace",
+    "github-copilot",
+    "budget-governance",
+    "enterprise",
+    "finops",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian/issues"
+  },
+  "homepage": "https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian#readme",
   "main": "index.js",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "test": "jest --runInBand"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
-    "@octokit/core": "^7.0.6",
     "csv-parse": "^7.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "jest": "^30.0.5"
   }
 }

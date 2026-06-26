@@ -30,7 +30,14 @@ class Logger {
   }
 
   setOutput(name, value) {
-    core.setOutput(name, value);
+    // Running inside GitHub Actions
+    if (process.env.GITHUB_ACTIONS === "true") {
+      core.setOutput(name, value);
+      return;
+    }
+
+    // Running locally
+    this.info(`Output -> ${name}: ${value}`);
   }
 
   fail(error) {

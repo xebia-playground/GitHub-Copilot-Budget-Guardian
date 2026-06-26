@@ -1,22 +1,65 @@
 const core = require("@actions/core");
 
 class Config {
+  getInput(name, required = false, defaultValue = "") {
+    const envName = `INPUT_${name.replace(/-/g, "_").toUpperCase()}`;
+
+    const value =
+      process.env[envName] ||
+      process.env[name.replace(/-/g, "_").toUpperCase()];
+
+    if (value) {
+      return value;
+    }
+
+    try {
+      return core.getInput(name, { required });
+    } catch (_) {
+      if (required) {
+        throw new Error(`Missing required input: ${name}`);
+      }
+
+      return defaultValue;
+    }
+  }
+
   load() {
     return {
-      githubToken: core.getInput("github-token", { required: true }),
-      enterpriseSlug: core.getInput("enterprise-slug", { required: true }),
-      budgetFile: core.getInput("budget-file", { required: true }),
-      dryRun: core.getInput("dry-run") === "true",
+      githubToken: this.getInput("github-token", true),
 
-      reportFormat: core.getInput("report-format") || "markdown",
+      enterpriseSlug: this.getInput("enterprise-slug", true),
 
-      alertThreshold: Number(
-        core.getInput("alert-threshold") || 80
+      budgetFile: this.getInput(
+        "budget-file",
+        false,
+        "budgets.csv"
       ),
 
-      slackWebhook: core.getInput("slack-webhook") || "",
+      dryRun:
+        this.getInput("dry-run", false, "false") ===
+        "true",
 
-      teamsWebhook: core.getInput("teams-webhook") || ""
+      reportFormat: this.getInput(
+        "report-format",
+        false,
+        "markdown"
+      ),
+
+      alertThreshold: Number(
+        this.getInput(
+          "alert-threshold",
+          false,
+          "80"
+        )
+      ),
+
+      slackWebhook: this.getInput(
+        "slack-webhook"
+      ),
+
+      teamsWebhook: this.getInput(
+        "teams-webhook"
+      )
     };
   }
 }

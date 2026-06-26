@@ -1,6 +1,6 @@
 name: GitHub Copilot Budget Guardian
 
-description: Enterprise GitHub Action for Copilot Budget Governance, Validation, Reporting, and Alerts.
+description: Enterprise GitHub Action for GitHub Copilot budget governance, synchronization, validation, reporting, and notifications.
 
 author: Kuldeep Saini
 
@@ -10,29 +10,30 @@ branding:
 
 inputs:
   github-token:
-    description: GitHub Personal Access Token
+    description: GitHub Personal Access Token with Enterprise permissions
     required: true
 
   enterprise-slug:
-    description: GitHub Enterprise Slug
+    description: GitHub Enterprise slug
     required: true
 
   budget-file:
-    description: Budget file (CSV)
-    required: true
+    description: Path to the budget CSV file
+    required: false
+    default: budgets.csv
 
   dry-run:
-    description: Preview changes without updating budgets
+    description: Preview changes without updating GitHub Enterprise budgets
     required: false
     default: "false"
 
   report-format:
-    description: Report format (markdown | csv | json)
+    description: Report format (markdown | json | csv)
     required: false
-    default: "markdown"
+    default: markdown
 
   alert-threshold:
-    description: Alert threshold percentage
+    description: Budget utilization alert threshold percentage
     required: false
     default: "80"
 
@@ -43,6 +44,19 @@ inputs:
   teams-webhook:
     description: Microsoft Teams Incoming Webhook URL
     required: false
+
+outputs:
+  created:
+    description: Number of budgets created
+
+  updated:
+    description: Number of budgets updated
+
+  skipped:
+    description: Number of budgets skipped
+
+  failed:
+    description: Number of failed budget operations
 
 runs:
   using: node24

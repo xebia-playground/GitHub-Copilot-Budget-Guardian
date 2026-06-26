@@ -3,49 +3,105 @@ const logger = require("./logger");
 
 class GitHubClient {
   constructor(token) {
-    if (!token) {
-      throw new Error("GitHub token is required.");
-    }
-
     this.octokit = github.getOctokit(token);
   }
 
-  async request(method, route, parameters = {}) {
-    try {
-      logger.info(`${method} ${route}`);
+  async getExistingBudgets(enterprise) {
+    logger.info("Fetching existing Copilot budgets...");
 
-      const response = await this.octokit.request(
-        `${method} ${route}`,
-        parameters
+    const response = await this.octokit.request(
+      "GET /enterprises/{enterprise}/settings/billing/budgets",
+      {
+        enterprise,
+        per_page: 100
+      }
+    );
+
+    (response.data.budgets || []).forEach((budget) => {
+      logger.info(
+        `${budget.budget_scope} | ${budget.budget_entity_name} | ${budget.budget_amount}`
       );
+    });
 
-      logger.success(`${response.status} ${method} ${route}`);
-
-      return response.data;
-    } catch (error) {
-      logger.error(error.message);
-      throw error;
-    }
+    return response.data.budgets || [];
   }
 
-  async validateEnterprise(enterprise) {
-    return this.request(
-      "GET",
-      "/enterprises/{enterprise}",
+  async createBudget(enterprise, payload) {
+    logger.info(`Creating budget for ${payload.user}`);
+
+    const response = await this.octokit.request(
+      "POST /enterprises/{enterprise}/settings/billing/budgets",
       {
-        enterprise
+        enterprise,
+
+        budget_amount: payload.budget_amount,
+
+        budget_scope: "user",
+
+        user: payload.user,
+
+        prevent_further_usage:
+          payload.prevent_further_usage ?? true,
+
+        budget_product_sku:
+          payload.budget_product_sku ??
+          "premium_requests",
+
+        budget_type:
+          payload.budget_type ??
+          "BundlePricing",
+
+        budget_alerting:
+          payload.budget_alerting ?? {
+            will_alert: false,
+            alert_recipients: []
+          }
       }
     );
+
+    logger.success(
+      `Budget created for ${payload.user}`
+    );
+
+    return response.data;
   }
 
-  async getCopilotSeats(enterprise) {
-    return this.request(
-      "GET",
-      "/enterprises/{enterprise}/copilot/billing/seats",
+  async updateBudget(
+    enterprise,
+    budgetId,
+    payload
+  ) {
+    logger.info(
+      `Updating budget ${budgetId}`
+    );
+
+    const response = await this.octokit.request(
+      "PATCH /enterprises/{enterprise}/settings/billing/budgets/{budget_id}",
       {
-        enterprise
+        enterprise,
+
+        budget_id: budgetId,
+
+        budget_amount: payload.budget_amount,
+
+        user: payload.user,
+
+        prevent_further_usage:
+          payload.prevent_further_usage ?? true,
+
+        budget_alerting:
+          payload.budget_alerting ?? {
+            will_alert: false,
+            alert_recipients: []
+          }
       }
     );
+
+    logger.success(
+      `Budget updated for ${payload.user}`
+    );
+
+    return response.data;
   }
 }
 

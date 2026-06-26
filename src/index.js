@@ -1,4 +1,5 @@
 const logger = require("./logger");
+const config = require("./config");
 const budgetService = require("./budget-service");
 const SyncService = require("./sync-service");
 const GitHubClient = require("./github-client");
@@ -7,14 +8,17 @@ async function run() {
   try {
     logger.startGroup("GitHub Copilot Budget Guardian");
 
-    const budgets = budgetService.loadBudgets("budgets.csv");
+    // Load configuration
+    const cfg = config.load();
 
-    const client = new GitHubClient(
-      process.env.GITHUB_TOKEN || "dummy-token"
-    );
+    // Read budget file
+    const budgets = budgetService.loadBudgets(cfg.budgetFile);
 
-    await SyncService.sync(budgets, client);
+    // Initialize GitHub client
+    const client = new GitHubClient(cfg.githubToken);
 
+    // Synchronize budgets
+    await SyncService.sync(budgets, client, cfg);
 
     logger.success("Budget file processed successfully.");
 

@@ -1,46 +1,24 @@
-const core = require("@actions/core");
+const logger = require("./logger");
+const config = require("./config");
 
 async function run() {
-    try {
+  try {
+    logger.startGroup("GitHub Copilot Budget Guardian");
 
-        core.startGroup("🚀 GitHub Copilot Budget Guardian");
+    const cfg = config.load();
 
-        const budgetFile = core.getInput("budget-file");
-        const enterpriseSlug = core.getInput("enterprise-slug");
-        const githubToken = core.getInput("github-token");
-        const dryRun = core.getInput("dry-run");
+    logger.success("Configuration Loaded");
 
-        core.info("Configuration Loaded");
+    logger.info(`Enterprise : ${cfg.enterpriseSlug}`);
+    logger.info(`Budget File : ${cfg.budgetFile}`);
+    logger.info(`Dry Run : ${cfg.dryRun}`);
+    logger.info(`Report : ${cfg.reportFormat}`);
+    logger.info(`Threshold : ${cfg.alertThreshold}%`);
 
-        core.info("--------------------------------");
-
-        core.info(`Budget File      : ${budgetFile}`);
-        core.info(`Enterprise Slug  : ${enterpriseSlug}`);
-        core.info(`Dry Run          : ${dryRun}`);
-
-        core.info("--------------------------------");
-
-        if (!budgetFile) {
-            throw new Error("Budget file is required.");
-        }
-
-        if (!enterpriseSlug) {
-            throw new Error("Enterprise slug is required.");
-        }
-
-        if (!githubToken) {
-            throw new Error("GitHub Token is required.");
-        }
-
-        core.notice("Configuration validation completed.");
-
-        core.endGroup();
-
-    } catch (error) {
-
-        core.setFailed(error.message);
-
-    }
+    logger.endGroup();
+  } catch (err) {
+    logger.fail(err);
+  }
 }
 
 run();

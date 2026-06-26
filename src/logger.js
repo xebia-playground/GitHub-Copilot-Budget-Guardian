@@ -1,0 +1,41 @@
+const core = require("@actions/core");
+
+class Logger {
+  info(message) {
+    core.info(`ℹ️ ${message}`);
+  }
+
+  success(message) {
+    core.info(`✅ ${message}`);
+  }
+
+  warning(message) {
+    core.warning(`⚠️ ${message}`);
+  }
+
+  error(message) {
+    core.error(`❌ ${message}`);
+  }
+
+  debug(message) {
+    core.debug(`🔍 ${message}`);
+  }
+
+  startGroup(title) {
+    core.startGroup(`📂 ${title}`);
+  }
+
+  endGroup() {
+    core.endGroup();
+  }
+
+  setOutput(name, value) {
+    core.setOutput(name, value);
+  }
+
+  fail(error) {
+    core.setFailed(error instanceof Error ? error.message : error);
+  }
+}
+
+module.exports = new Logger();

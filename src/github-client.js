@@ -1,46 +1,49 @@
-const { Octokit } = require("@octokit/core");
+const github = require("@actions/github");
 const logger = require("./logger");
 
 class GitHubClient {
   constructor(token) {
-    this.octokit = new Octokit({
-      auth: token,
-      userAgent: "GitHub-Copilot-Budget-Guardian/1.0.0"
-    });
+    if (!token) {
+      throw new Error("GitHub token is required.");
+    }
+
+    this.octokit = github.getOctokit(token);
   }
 
-  async request(method, url, body = {}) {
+  async request(method, route, parameters = {}) {
     try {
-      logger.info(`${method} ${url}`);
+      logger.info(`${method} ${route}`);
 
-      const response = await this.octokit.request(`${method} ${url}`, body);
+      const response = await this.octokit.request(
+        `${method} ${route}`,
+        parameters
+      );
 
-      logger.success(`Status ${response.status}`);
+      logger.success(`${response.status} ${method} ${route}`);
 
       return response.data;
-
     } catch (error) {
-      logger.fail(error.message);
+      logger.error(error.message);
       throw error;
     }
   }
 
-  async validateEnterprise(enterpriseSlug) {
+  async validateEnterprise(enterprise) {
     return this.request(
       "GET",
       "/enterprises/{enterprise}",
       {
-        enterprise: enterpriseSlug
+        enterprise
       }
     );
   }
 
-  async getCopilotSeats(enterpriseSlug) {
+  async getCopilotSeats(enterprise) {
     return this.request(
       "GET",
       "/enterprises/{enterprise}/copilot/billing/seats",
       {
-        enterprise: enterpriseSlug
+        enterprise
       }
     );
   }

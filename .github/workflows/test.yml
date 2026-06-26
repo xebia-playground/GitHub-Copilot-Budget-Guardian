@@ -1,0 +1,20 @@
+name: Test Copilot Budget Guardian
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Local Action
+        uses: ./
+        with:
+          budget-file: budgets.csv
+          enterprise-slug: demo-enterprise
+          github-token: dummy-token
+          dry-run: true

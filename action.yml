@@ -1,0 +1,32 @@
+name: GitHub Copilot Budget Guardian
+
+description: Enterprise GitHub Action for Copilot Budget Governance, Validation, Reporting and Alerts.
+
+author: Kuldeep Saini
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  budget-file:
+    description: Budget file (CSV)
+    required: true
+
+  enterprise-slug:
+    description: GitHub Enterprise Slug
+    required: true
+
+  github-token:
+    description: GitHub Token
+    required: true
+
+  dry-run:
+    description: Preview changes without updating budgets
+    required: false
+    default: "false"
+
+runs:
+  using: node24
+
+  main: src/main.js

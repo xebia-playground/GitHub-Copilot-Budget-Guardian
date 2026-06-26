@@ -1,15 +1,50 @@
 const core = require("@actions/core");
 
 class Config {
-  getInput(name, required = false, defaultValue = "") {
-    const envName = `INPUT_${name.replace(/-/g, "_").toUpperCase()}`;
+  isGitHubActionsRuntime() {
+    return process.env.GITHUB_ACTIONS === "true";
+  }
 
-    const value =
+  getLocalArg(name) {
+    const flagName = `--${name}=`;
+    const arg = process.argv.find((item) =>
+      item.startsWith(flagName)
+    );
+
+    if (!arg) {
+      return "";
+    }
+
+    return arg.slice(flagName.length);
+  }
+
+  getLocalOverride(name) {
+    const envName = `COPILOT_BUDGET_GUARDIAN_${name
+      .replace(/-/g, "_")
+      .toUpperCase()}`;
+
+    return (
+      this.getLocalArg(name) ||
       process.env[envName] ||
-      process.env[name.replace(/-/g, "_").toUpperCase()];
+      ""
+    );
+  }
 
-    if (value) {
-      return value;
+  getInput(name, required = false, defaultValue = "") {
+    if (!this.isGitHubActionsRuntime()) {
+      const localValue = this.getLocalOverride(name);
+
+      if (localValue) {
+        return localValue;
+      }
+
+      if (required) {
+        throw new Error(
+          `Missing required input for local execution: ${name}`
+        );
+      }
+
+      return defaultValue;
     }
 
     try {
@@ -24,32 +59,55 @@ class Config {
   }
 
   load() {
-    return {
-      githubToken: this.getInput("github-token", true),
+    const localDefaults = this.isGitHubActionsRuntime()
+      ? {}
+      : {
+          githubToken: "local-dev-token",
+          enterpriseSlug: "local-enterprise",
+          budgetFile: "examples/budgets.csv",
+          dryRun: "true",
+          reportFormat: "markdown",
+          alertThreshold: "80"
+        };
 
-      enterpriseSlug: this.getInput("enterprise-slug", true),
+    return {
+      githubToken: this.getInput(
+        "github-token",
+        !localDefaults.githubToken,
+        localDefaults.githubToken || ""
+      ),
+
+      enterpriseSlug: this.getInput(
+        "enterprise-slug",
+        !localDefaults.enterpriseSlug,
+        localDefaults.enterpriseSlug || ""
+      ),
 
       budgetFile: this.getInput(
         "budget-file",
         false,
-        "budgets.csv"
+        localDefaults.budgetFile || "budgets.csv"
       ),
 
       dryRun:
-        this.getInput("dry-run", false, "false") ===
+        this.getInput(
+          "dry-run",
+          false,
+          localDefaults.dryRun || "false"
+        ) ===
         "true",
 
       reportFormat: this.getInput(
         "report-format",
         false,
-        "markdown"
+        localDefaults.reportFormat || "markdown"
       ),
 
       alertThreshold: Number(
         this.getInput(
           "alert-threshold",
           false,
-          "80"
+          localDefaults.alertThreshold || "80"
         )
       ),
 

@@ -1,0 +1,30 @@
+{
+  "summary": {
+    "total": 3,
+    "created": 3,
+    "updated": 0,
+    "skipped": 0,
+    "failed": 0,
+    "generated": "2026-06-26T09:12:48.891Z"
+  },
+  "budgets": [
+    {
+      "username": "ramesh2051",
+      "budget": 6,
+      "reason": "Testing",
+      "team": "Platform"
+    },
+    {
+      "username": "Rajeshcn26",
+      "budget": 1,
+      "reason": "Testing",
+      "team": "Engineering"
+    },
+    {
+      "username": "X-14537kuldeepsaini",
+      "budget": 5,
+      "reason": "Create Test",
+      "team": "Platform"
+    }
+  ]
+}

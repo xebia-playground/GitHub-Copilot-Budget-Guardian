@@ -1,4 +1,4 @@
-const GitHubClient = require("./src/github-client");
+const GitHubClient = require("../../src/github-client");
 
 async function run() {
 

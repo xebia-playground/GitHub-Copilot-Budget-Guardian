@@ -1,22 +1,42 @@
-name: Test Copilot Budget Guardian
+name: CI
 
 on:
-  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Copilot Budget Guardian
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+      - name: Smoke test action with example CSV
         uses: ./
         with:
           github-token: dummy-token
           enterprise-slug: demo-enterprise
-          budget-file: budgets.csv
+          budget-file: examples/budgets.csv
           dry-run: "true"
           report-format: markdown
           alert-threshold: "80"

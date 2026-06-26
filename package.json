@@ -3,18 +3,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o dist",
-    "test": "echo \"No tests yet\""
+    "build": "node build.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
-    "@vercel/ncc": "^0.44.0"
-  },
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }

@@ -1,19 +1,20 @@
 const logger = require("./logger");
-const config = require("./config");
+const budgetService = require("./budget-service");
+const validator = require("./validator");
+const reportService = require("./report-service");
 
 async function run() {
   try {
     logger.startGroup("GitHub Copilot Budget Guardian");
 
-    const cfg = config.load();
+    const budgets = budgetService.loadBudgets("budgets.csv");
+    validator.validateBudgets(budgets);
 
-    logger.success("Configuration Loaded");
+    budgetService.printSummary(budgets);
 
-    logger.info(`Enterprise : ${cfg.enterpriseSlug}`);
-    logger.info(`Budget File : ${cfg.budgetFile}`);
-    logger.info(`Dry Run : ${cfg.dryRun}`);
-    logger.info(`Report : ${cfg.reportFormat}`);
-    logger.info(`Threshold : ${cfg.alertThreshold}%`);
+    reportService.generate(budgets);
+
+    logger.success("Budget file processed successfully.");
 
     logger.endGroup();
   } catch (err) {

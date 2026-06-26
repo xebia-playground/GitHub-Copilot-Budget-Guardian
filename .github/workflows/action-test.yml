@@ -1,0 +1,104 @@
+name: GitHub Copilot Budget Guardian Integration Test
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    name: End-to-End Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1) Checkout repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2) Configure Node.js runtime and npm cache
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      # 3) Install dependencies using lockfile for reproducible builds
+      - name: Install dependencies
+        run: npm ci
+
+      # 4) Run unit tests before integration execution
+      - name: Run unit tests
+        run: npm test
+
+      # 5) Build action bundle
+      - name: Build action
+        run: npm run build
+
+      # Optional precheck: fail early if required secrets are not configured
+      - name: Precheck required secrets
+        env:
+          ENTERPRISE_ADMIN_PAT: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
+          ENTERPRISE_SLUG: ${{ secrets.ENTERPRISE_SLUG }}
+        run: |
+          if [[ -z "$ENTERPRISE_ADMIN_PAT" ]]; then
+            echo "Missing required secret: ENTERPRISE_ADMIN_PAT"
+            exit 1
+          fi
+          if [[ -z "$ENTERPRISE_SLUG" ]]; then
+            echo "Missing required secret: ENTERPRISE_SLUG"
+            exit 1
+          fi
+          echo "Required secrets are configured."
+
+      # 6) Execute action in dry-run mode against example data
+      - name: Execute GitHub Copilot Budget Guardian
+        id: guardian
+        uses: ./
+        with:
+          github-token: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
+          enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
+          budget-file: examples/budgets.csv
+          dry-run: "true"
+          report-format: markdown
+          alert-threshold: "80"
+
+      # 7) Verify and print action outputs
+      - name: Verify outputs
+        run: |
+          echo "created=${{ steps.guardian.outputs.created }}"
+          echo "updated=${{ steps.guardian.outputs.updated }}"
+          echo "skipped=${{ steps.guardian.outputs.skipped }}"
+          echo "failed=${{ steps.guardian.outputs.failed }}"
+
+      # 8) Verify generated report files exist; fail immediately if missing
+      - name: Verify generated reports
+        run: |
+          test -f budget-report.md || { echo "Missing budget-report.md"; exit 1; }
+          test -f budget-report.json || { echo "Missing budget-report.json"; exit 1; }
+          test -f budget-report.csv || { echo "Missing budget-report.csv"; exit 1; }
+          echo "All report files were generated successfully."
+
+      # 9) Upload generated reports as workflow artifacts
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget-reports
+          path: |
+            budget-report.md
+            budget-report.json
+            budget-report.csv
+
+      # 10) Publish a concise run summary in GitHub Step Summary
+      - name: Publish integration test summary
+        run: |
+          {
+            echo "## Integration Test Result"
+            echo "- Created: ${{ steps.guardian.outputs.created }}"
+            echo "- Updated: ${{ steps.guardian.outputs.updated }}"
+            echo "- Skipped: ${{ steps.guardian.outputs.skipped }}"
+            echo "- Failed: ${{ steps.guardian.outputs.failed }}"
+            echo "- Report files generated: budget-report.md, budget-report.json, budget-report.csv"
+            echo "- Workflow completed successfully"
+          } >> "$GITHUB_STEP_SUMMARY"

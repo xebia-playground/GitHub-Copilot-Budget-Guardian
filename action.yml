@@ -28,4 +28,4 @@ inputs:
 
 runs:
   using: node24
-  main: src/main.js
+  main: src/index.js

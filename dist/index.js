@@ -34,7 +34,11 @@ var require_logger = __commonJS({
         core.endGroup();
       }
       setOutput(name, value) {
-        core.setOutput(name, value);
+        if (process.env.GITHUB_ACTIONS === "true") {
+          core.setOutput(name, value);
+          return;
+        }
+        this.info(`Output -> ${name}: ${value}`);
       }
       fail(error) {
         core.setFailed(error instanceof Error ? error.message : error);
@@ -88,6 +92,34 @@ var require_config = __commonJS({
           return defaultValue;
         }
       }
+      validateReportFormat(format) {
+        const validFormats = ["markdown", "json", "csv"];
+        if (!validFormats.includes(format)) {
+          throw new Error(
+            `Invalid report-format: ${format}
+
+Supported formats:
+- markdown
+- json
+- csv`
+          );
+        }
+        return format;
+      }
+      validateAlertThreshold(threshold) {
+        const num = Number(threshold);
+        if (isNaN(num)) {
+          throw new Error(
+            `alert-threshold must be a number, received: ${threshold}`
+          );
+        }
+        if (num < 0 || num > 100) {
+          throw new Error(
+            `alert-threshold must be between 0 and 100, received: ${num}`
+          );
+        }
+        return num;
+      }
       load() {
         const localDefaults = this.isGitHubActionsRuntime() ? {} : {
           githubToken: "local-dev-token",
@@ -97,6 +129,16 @@ var require_config = __commonJS({
           reportFormat: "markdown",
           alertThreshold: "80"
         };
+        const reportFormat = this.getInput(
+          "report-format",
+          false,
+          localDefaults.reportFormat || "markdown"
+        );
+        const alertThreshold = this.getInput(
+          "alert-threshold",
+          false,
+          localDefaults.alertThreshold || "80"
+        );
         return {
           githubToken: this.getInput(
             "github-token",
@@ -118,18 +160,8 @@ var require_config = __commonJS({
             false,
             localDefaults.dryRun || "false"
           ) === "true",
-          reportFormat: this.getInput(
-            "report-format",
-            false,
-            localDefaults.reportFormat || "markdown"
-          ),
-          alertThreshold: Number(
-            this.getInput(
-              "alert-threshold",
-              false,
-              localDefaults.alertThreshold || "80"
-            )
-          ),
+          reportFormat: this.validateReportFormat(reportFormat),
+          alertThreshold: this.validateAlertThreshold(alertThreshold),
           slackWebhook: this.getInput(
             "slack-webhook"
           ),

@@ -67,7 +67,7 @@ jobs:
           github-token: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
           enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
           budget-file: examples/budgets.csv
-          dry-run: "true"
+          dry-run: "false"
           report-format: markdown
           alert-threshold: "80"
 

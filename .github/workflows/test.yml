@@ -31,14 +31,7 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Smoke test action with example CSV
-        uses: ./
-        with:
-          github-token: dummy-token
-          enterprise-slug: demo-enterprise
-          budget-file: examples/budgets.csv
-          dry-run: "true"
-          report-format: markdown
-          alert-threshold: "80"
-          slack-webhook: ""
-          teams-webhook: ""
+      - name: Skip Enterprise Integration Test
+        run: |
+          echo "✅ Build completed successfully."
+          echo "ℹ️ Enterprise integration tests are executed separately via the 'End-to-End Integration Test' workflow."

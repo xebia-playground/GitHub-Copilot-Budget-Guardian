@@ -82,7 +82,7 @@ class SyncService {
 
     for (const budget of budgets) {
       try {
-        const existing = .find(
+       const existing = existingBudgets.find(
           (item) =>
             (
               item.budget_entity_name ||

@@ -21,13 +21,18 @@ class SyncService {
     // Fetch existing budgets
     if (githubClient && config.enterpriseSlug) {
       try {
+
+        logger.info(
+  `Enterprise Slug: ${config.enterpriseSlug}`
+);
+        
         existingBudgets =
           await githubClient.getExistingBudgets(
             config.enterpriseSlug
           );
 
         logger.success(
-          `Fetched ${existingBudgets.length} existing budgets.`
+          `Fetched ${.length} existing budgets.`
         );
           } catch (err) {
         logger.error(
@@ -77,7 +82,7 @@ class SyncService {
 
     for (const budget of budgets) {
       try {
-        const existing = existingBudgets.find(
+        const existing = .find(
           (item) =>
             (
               item.budget_entity_name ||

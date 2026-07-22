@@ -29,7 +29,46 @@ class SyncService {
         logger.success(
           `Fetched ${existingBudgets.length} existing budgets.`
         );
-      } catch (err) {
+          } catch (err) {
+        logger.error(
+          "Failed to fetch existing budgets."
+        );
+
+        logger.error(
+          `Message: ${err.message}`
+        );
+
+        if (err.status) {
+          logger.error(
+            `Status: ${err.status}`
+          );
+        }
+
+        if (
+          err.request?.method &&
+          err.request?.url
+        ) {
+          logger.error(
+            `Request: ${err.request.method} ${err.request.url}`
+          );
+        }
+
+        if (err.response?.url) {
+          logger.error(
+            `URL: ${err.response.url}`
+          );
+        }
+
+        if (err.response?.data) {
+          logger.error(
+            `Response: ${JSON.stringify(
+              err.response.data,
+              null,
+              2
+            )}`
+          );
+        }
+
         logger.warning(
           "Unable to fetch existing budgets. Running in local mode."
         );

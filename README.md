@@ -481,4 +481,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 GitHub Platform Engineer | Open Source Contributor
 
-Passionate about building enterprise-grade GitHub Actions, CI/CD automation, GitHub Enterprise solutions, and developer productivity tools.
+Passionate about building enterprise-grade GitHub Actions, CI/CD automation, GitHub Enterprise solutions, and developer productivity tools..

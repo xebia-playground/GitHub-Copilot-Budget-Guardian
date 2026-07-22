@@ -52,6 +52,13 @@ jobs:
           fi
           echo "Required secrets are configured."
 
+      # Debug Enterprise Slug
+      - name: Debug Enterprise Slug
+        env:
+          ENTERPRISE_SLUG: ${{ secrets.ENTERPRISE_SLUG }}
+        run: |
+          echo "Enterprise Slug: $ENTERPRISE_SLUG"
+
       # 6) Execute action in dry-run mode against example data
       - name: Execute GitHub Copilot Budget Guardian
         id: guardian

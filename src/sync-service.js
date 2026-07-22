@@ -32,7 +32,7 @@ class SyncService {
           );
 
         logger.success(
-          `Fetched ${.length} existing budgets.`
+`Fetched ${existingBudgets.length} existing budgets.`
         );
           } catch (err) {
         logger.error(

@@ -95,6 +95,29 @@ describe("report-service.generate", () => {
       "'=cmd|'/C calc'!A0,'+2,'-Ops,'@alert"
     );
   });
+
+  test("neutralizes CSV formula-injection values with leading whitespace", () => {
+    const budgets = [
+      {
+        username: " =1+1",
+        budget: "  +SUM(A1:A2)",
+        team: " -10",
+        reason: " @test"
+      }
+    ];
+
+    reportService.generate(budgets, {
+      created: [],
+      updated: [],
+      skipped: [],
+      failed: []
+    });
+
+    const csvOutput = fs.writeFileSync.mock.calls[2][1];
+    expect(csvOutput).toContain(
+      "' =1+1,'  +SUM(A1:A2),' -10,' @test"
+    );
+  });
 });
 
 describe("report-service.writeJobSummary", () => {
@@ -134,5 +157,7 @@ describe("report-service.writeJobSummary", () => {
     expect(summary).toContain("alice\\|admin root");
     expect(summary).toContain("bob\\|ops");
     expect(summary).toContain("dave \\|x");
+    expect(summary).toContain("## User Budget Status");
+    expect(summary).not.toContain("## Changed Users");
   });
 });

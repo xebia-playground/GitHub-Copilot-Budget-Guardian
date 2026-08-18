@@ -18,7 +18,7 @@ const { postJson } = require("../utils");
  * @returns {Promise<void>}
  */
 async function sendSlack(context, result) {
-  const webhookUrl = context.slackWebhook;
+  const webhookUrl = (context.slackWebhook || "").trim();
 
   if (!webhookUrl) {
     logger.warning(

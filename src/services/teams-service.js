@@ -18,7 +18,7 @@ const { postJson } = require("../utils");
  * @returns {Promise<void>}
  */
 async function sendTeams(context, result) {
-  const webhookUrl = context.teamsWebhook;
+  const webhookUrl = (context.teamsWebhook || "").trim();
 
   if (!webhookUrl) {
     logger.warning(

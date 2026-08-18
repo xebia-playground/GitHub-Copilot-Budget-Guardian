@@ -48,6 +48,22 @@ describe("config.load notify-on validation", () => {
     expect(cfg.notifyOn).toBe("always");
   });
 
+  test("trims notify-on changes-only before validation", () => {
+    mockInputs("changes-only ");
+
+    const cfg = config.load();
+
+    expect(cfg.notifyOn).toBe("changes-only");
+  });
+
+  test("trims notify-on always before validation", () => {
+    mockInputs(" always ");
+
+    const cfg = config.load();
+
+    expect(cfg.notifyOn).toBe("always");
+  });
+
   test("rejects invalid notify-on value", () => {
     mockInputs("sometimes");
 

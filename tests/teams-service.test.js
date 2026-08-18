@@ -43,6 +43,16 @@ describe("teams-service.sendTeams", () => {
     );
   });
 
+  test("skips gracefully when teamsWebhook is whitespace only", async () => {
+    const context = { ...baseContext, teamsWebhook: "   " };
+    await sendTeams(context, baseResult);
+
+    expect(postJson).not.toHaveBeenCalled();
+    expect(logger.warning).toHaveBeenCalledWith(
+      "TEAMS_WEBHOOK is not configured. Skipping Teams notification."
+    );
+  });
+
   test("sends Adaptive Card payload to the webhook URL", async () => {
     await sendTeams(baseContext, baseResult);
 

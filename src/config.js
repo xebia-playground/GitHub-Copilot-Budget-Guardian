@@ -2,15 +2,16 @@ const core = require("@actions/core");
 
 class Config {
   validateNotifyOn(notifyOn) {
+    const normalizedNotifyOn = String(notifyOn).trim();
     const supportedValues = ["changes-only", "always"];
 
-    if (!supportedValues.includes(notifyOn)) {
+    if (!supportedValues.includes(normalizedNotifyOn)) {
       throw new Error(
         `Invalid notify-on value: ${notifyOn}. Supported values are: changes-only, always.`
       );
     }
 
-    return notifyOn;
+    return normalizedNotifyOn;
   }
 
   isGitHubActionsRuntime() {

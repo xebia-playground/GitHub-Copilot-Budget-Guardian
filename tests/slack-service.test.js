@@ -43,6 +43,16 @@ describe("slack-service.sendSlack", () => {
     );
   });
 
+  test("skips gracefully when slackWebhook is whitespace only", async () => {
+    const context = { ...baseContext, slackWebhook: "   " };
+    await sendSlack(context, baseResult);
+
+    expect(postJson).not.toHaveBeenCalled();
+    expect(logger.warning).toHaveBeenCalledWith(
+      "SLACK_WEBHOOK is not configured. Skipping Slack notification."
+    );
+  });
+
   test("sends Block Kit payload to the webhook URL", async () => {
     await sendSlack(baseContext, baseResult);
 

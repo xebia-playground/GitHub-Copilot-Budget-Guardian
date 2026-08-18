@@ -5,7 +5,8 @@ const logger = require("./logger");
 /**
  * Quotes a value for safe inclusion in a CSV field.
  * Wraps in double quotes and escapes any internal double quotes.
- * Also neutralizes spreadsheet formula execution when a value starts
+ * Also neutralizes spreadsheet formula execution when a value starts,
+ * even after leading whitespace,
  * with a formula trigger character (=, +, -, @).
  *
  * @param {*} value - Raw field value
@@ -14,7 +15,7 @@ const logger = require("./logger");
 function csvField(value) {
   let str = String(value ?? "");
 
-  if (/^[=+\-@]/.test(str)) {
+  if (/^\s*[=+\-@]/.test(str)) {
     str = `'${str}`;
   }
 
@@ -178,7 +179,7 @@ ${budgets
       `| **Skipped** | ${result.skipped.length} |`,
       `| **Failed** | ${result.failed.length} |`,
       "",
-      "## Changed Users",
+      "## User Budget Status",
       "",
       "| Username | Status | Previous Budget | New Budget |",
       "|----------|--------|----------------:|-----------:|",

@@ -54,13 +54,14 @@ var require_config = __commonJS({
     var core = require("@actions/core");
     var Config = class {
       validateNotifyOn(notifyOn) {
+        const normalizedNotifyOn = String(notifyOn).trim();
         const supportedValues = ["changes-only", "always"];
-        if (!supportedValues.includes(notifyOn)) {
+        if (!supportedValues.includes(normalizedNotifyOn)) {
           throw new Error(
             `Invalid notify-on value: ${notifyOn}. Supported values are: changes-only, always.`
           );
         }
-        return notifyOn;
+        return normalizedNotifyOn;
       }
       isGitHubActionsRuntime() {
         return process.env.GITHUB_ACTIONS === "true";
@@ -1923,7 +1924,7 @@ var require_report_service = __commonJS({
     var logger2 = require_logger();
     function csvField(value) {
       let str = String(value ?? "");
-      if (/^[=+\-@]/.test(str)) {
+      if (/^\s*[=+\-@]/.test(str)) {
         str = `'${str}`;
       }
       if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
@@ -2054,7 +2055,7 @@ ${budgets.map(
           `| **Skipped** | ${result.skipped.length} |`,
           `| **Failed** | ${result.failed.length} |`,
           "",
-          "## Changed Users",
+          "## User Budget Status",
           "",
           "| Username | Status | Previous Budget | New Budget |",
           "|----------|--------|----------------:|-----------:|",
@@ -14276,7 +14277,7 @@ var require_teams_service = __commonJS({
     var logger2 = require_logger();
     var { postJson } = require_utils();
     async function sendTeams(context, result) {
-      const webhookUrl = context.teamsWebhook;
+      const webhookUrl = (context.teamsWebhook || "").trim();
       if (!webhookUrl) {
         logger2.warning(
           "TEAMS_WEBHOOK is not configured. Skipping Teams notification."
@@ -14406,7 +14407,7 @@ var require_slack_service = __commonJS({
     var logger2 = require_logger();
     var { postJson } = require_utils();
     async function sendSlack(context, result) {
-      const webhookUrl = context.slackWebhook;
+      const webhookUrl = (context.slackWebhook || "").trim();
       if (!webhookUrl) {
         logger2.warning(
           "SLACK_WEBHOOK is not configured. Skipping Slack notification."

@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 
 jest.mock("../src/logger", () => ({
   success: jest.fn()
@@ -10,12 +11,14 @@ const reportService = require("../src/report-service");
 describe("report-service.generate", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
     jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
     jest.useFakeTimers().setSystemTime(new Date("2026-06-26T00:00:00.000Z"));
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    fs.mkdirSync.mockRestore();
     fs.writeFileSync.mockRestore();
   });
 
@@ -32,20 +35,21 @@ describe("report-service.generate", () => {
 
     reportService.generate(budgets, result);
 
+    expect(fs.mkdirSync).toHaveBeenCalledWith("artifacts", { recursive: true });
     expect(fs.writeFileSync).toHaveBeenCalledTimes(3);
     expect(fs.writeFileSync).toHaveBeenNthCalledWith(
       1,
-      "budget-report.md",
+      path.join("artifacts", "budget-report.md"),
       expect.stringContaining("| Created | 1 |")
     );
     expect(fs.writeFileSync).toHaveBeenNthCalledWith(
       2,
-      "budget-report.json",
+      path.join("artifacts", "budget-report.json"),
       expect.stringContaining('"total": 1')
     );
     expect(fs.writeFileSync).toHaveBeenNthCalledWith(
       3,
-      "budget-report.csv",
+      path.join("artifacts", "budget-report.csv"),
       expect.stringContaining("alice,100,Platform,Init")
     );
     expect(logger.success).toHaveBeenCalledTimes(3);

@@ -58,31 +58,6 @@ class Config {
     }
   }
 
-  validateReportFormat(format) {
-    const validFormats = ["markdown", "json", "csv"];
-    if (!validFormats.includes(format)) {
-      throw new Error(
-        `Invalid report-format: ${format}\n\nSupported formats:\n- markdown\n- json\n- csv`
-      );
-    }
-    return format;
-  }
-
-  validateAlertThreshold(threshold) {
-    const num = Number(threshold);
-    if (isNaN(num)) {
-      throw new Error(
-        `alert-threshold must be a number, received: ${threshold}`
-      );
-    }
-    if (num < 0 || num > 100) {
-      throw new Error(
-        `alert-threshold must be between 0 and 100, received: ${num}`
-      );
-    }
-    return num;
-  }
-
   load() {
     const localDefaults = this.isGitHubActionsRuntime()
       ? {}
@@ -90,22 +65,8 @@ class Config {
           githubToken: "local-dev-token",
           enterpriseSlug: "local-enterprise",
           budgetFile: "examples/budgets.csv",
-          dryRun: "true",
-          reportFormat: "markdown",
-          alertThreshold: "80"
+          dryRun: "true"
         };
-
-    const reportFormat = this.getInput(
-      "report-format",
-      false,
-      localDefaults.reportFormat || "markdown"
-    );
-
-    const alertThreshold = this.getInput(
-      "alert-threshold",
-      false,
-      localDefaults.alertThreshold || "80"
-    );
 
     return {
       githubToken: this.getInput(
@@ -134,16 +95,18 @@ class Config {
         ) ===
         "true",
 
-      reportFormat: this.validateReportFormat(reportFormat),
-
-      alertThreshold: this.validateAlertThreshold(alertThreshold),
-
       slackWebhook: this.getInput(
         "slack-webhook"
       ),
 
       teamsWebhook: this.getInput(
         "teams-webhook"
+      ),
+
+      notifyOn: this.getInput(
+        "notify-on",
+        false,
+        "changes-only"
       )
     };
   }

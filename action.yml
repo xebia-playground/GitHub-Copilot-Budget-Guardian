@@ -27,16 +27,6 @@ inputs:
     required: false
     default: "false"
 
-  report-format:
-    description: Report format (markdown | json | csv)
-    required: false
-    default: markdown
-
-  alert-threshold:
-    description: Budget utilization alert threshold percentage
-    required: false
-    default: "80"
-
   slack-webhook:
     description: Slack Incoming Webhook URL
     required: false
@@ -44,6 +34,11 @@ inputs:
   teams-webhook:
     description: Microsoft Teams Incoming Webhook URL
     required: false
+
+  notify-on:
+    description: Notification policy — "always" sends notifications regardless of changes, "changes-only" sends only when budgets were created, updated, or failed
+    required: false
+    default: changes-only
 
 outputs:
   created:

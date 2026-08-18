@@ -24,10 +24,15 @@ jobs:
           enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
           budget-file: examples/budgets.csv
           dry-run: "false"
-          report-format: markdown
-          alert-threshold: "80"
-          slack-webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          teams-webhook: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          teams-webhook: ${{ secrets.TEAMS_WEBHOOK }}
+          notify-on: changes-only
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ADMIN_NOTIFICATION_EMAILS: ${{ secrets.ADMIN_NOTIFICATION_EMAILS }}
 
       - name: Display action outputs
         run: |
@@ -43,3 +48,14 @@ jobs:
             echo "- Skipped: ${{ steps.guardian.outputs.skipped }}"
             echo "- Failed: ${{ steps.guardian.outputs.failed }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget-sync-report
+          path: artifacts/
+          retention-days: 7
+
+      - name: Cleanup local artifacts
+        if: success()
+        run: rm -rf artifacts

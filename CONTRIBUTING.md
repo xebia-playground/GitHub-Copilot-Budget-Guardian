@@ -9,7 +9,7 @@ Thank you for contributing to GitHub Copilot Budget Guardian.
 3. Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 4. Run tests:

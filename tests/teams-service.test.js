@@ -101,7 +101,7 @@ describe("teams-service.sendTeams", () => {
     expect(header.color).toBe("Good");
   });
 
-  test("logs warning and does not throw when postJson rejects", async () => {
+  test("propagates error when postJson rejects", async () => {
     postJson.mockRejectedValue(new Error("Network error"));
 
     await expect(sendTeams(baseContext, baseResult)).rejects.toThrow(

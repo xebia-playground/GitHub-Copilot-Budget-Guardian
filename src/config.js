@@ -1,6 +1,18 @@
 const core = require("@actions/core");
 
 class Config {
+  validateNotifyOn(notifyOn) {
+    const supportedValues = ["changes-only", "always"];
+
+    if (!supportedValues.includes(notifyOn)) {
+      throw new Error(
+        `Invalid notify-on value: ${notifyOn}. Supported values are: changes-only, always.`
+      );
+    }
+
+    return notifyOn;
+  }
+
   isGitHubActionsRuntime() {
     return process.env.GITHUB_ACTIONS === "true";
   }
@@ -68,7 +80,7 @@ class Config {
           dryRun: "true"
         };
 
-    return {
+    const cfg = {
       githubToken: this.getInput(
         "github-token",
         !localDefaults.githubToken,
@@ -109,6 +121,10 @@ class Config {
         "changes-only"
       )
     };
+
+    cfg.notifyOn = this.validateNotifyOn(cfg.notifyOn);
+
+    return cfg;
   }
 }
 

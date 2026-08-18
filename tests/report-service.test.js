@@ -2,7 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 jest.mock("../src/logger", () => ({
-  success: jest.fn()
+  success: jest.fn(),
+  info: jest.fn()
 }));
 
 const logger = require("../src/logger");
@@ -70,5 +71,68 @@ describe("report-service.generate", () => {
     });
 
     expect(() => reportService.generate([])).toThrow("Disk full");
+  });
+
+  test("neutralizes CSV formula-injection values", () => {
+    const budgets = [
+      {
+        username: "=cmd|'/C calc'!A0",
+        budget: "+2",
+        team: "-Ops",
+        reason: "@alert"
+      }
+    ];
+
+    reportService.generate(budgets, {
+      created: [],
+      updated: [],
+      skipped: [],
+      failed: []
+    });
+
+    const csvOutput = fs.writeFileSync.mock.calls[2][1];
+    expect(csvOutput).toContain(
+      "'=cmd|'/C calc'!A0,'+2,'-Ops,'@alert"
+    );
+  });
+});
+
+describe("report-service.writeJobSummary", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.GITHUB_STEP_SUMMARY = "/tmp/summary.md";
+    jest.spyOn(fs.promises, "appendFile").mockResolvedValue();
+  });
+
+  afterEach(() => {
+    delete process.env.GITHUB_STEP_SUMMARY;
+    fs.promises.appendFile.mockRestore();
+  });
+
+  test("escapes markdown table values in summary fields and changed users", async () => {
+    const result = {
+      created: [{ username: "alice|admin\nroot", budget: "5\r" }],
+      updated: [{ user: "bob|ops", from: "1\n2", to: "3\r4" }],
+      skipped: [{ username: "carol\nteam", budget: "10|11" }],
+      failed: [{ user: "dave\r|x", error: "boom" }]
+    };
+
+    const context = {
+      repository: "acme/repo|prod",
+      enterprise: "ent\nname",
+      workflowName: "Budget\rSync",
+      executionTime: "2026-01-01T00:00:00.000Z"
+    };
+
+    await reportService.writeJobSummary(result, context);
+
+    expect(fs.promises.appendFile).toHaveBeenCalledTimes(1);
+    const summary = fs.promises.appendFile.mock.calls[0][1];
+    expect(summary).toContain("acme/repo\\|prod");
+    expect(summary).toContain("ent name");
+    expect(summary).toContain("Budget Sync");
+    expect(summary).toContain("alice\\|admin root");
+    expect(summary).toContain("bob\\|ops");
+    expect(summary).toContain("dave \\|x");
   });
 });

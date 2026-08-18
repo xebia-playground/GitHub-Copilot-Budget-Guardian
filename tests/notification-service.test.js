@@ -146,6 +146,26 @@ describe("notification-service.runNotifications", () => {
     expect(logger.warning).toHaveBeenCalledTimes(3);
   });
 
+  test("handles non-Error rejections safely", async () => {
+    sendEmail.mockRejectedValue(null);
+    sendTeams.mockRejectedValue("service unavailable");
+    sendSlack.mockRejectedValue({ code: 503, reason: "timeout" });
+
+    await expect(
+      runNotifications(baseContext, resultWithChanges, "always")
+    ).resolves.not.toThrow();
+
+    expect(logger.warning).toHaveBeenCalledWith(
+      "Email notification failed: Unknown error"
+    );
+    expect(logger.warning).toHaveBeenCalledWith(
+      "Teams notification failed: service unavailable"
+    );
+    expect(logger.warning).toHaveBeenCalledWith(
+      'Slack notification failed: {"code":503,"reason":"timeout"}'
+    );
+  });
+
   test("passes context and result to each channel", async () => {
     await runNotifications(baseContext, resultWithChanges, "always");
 

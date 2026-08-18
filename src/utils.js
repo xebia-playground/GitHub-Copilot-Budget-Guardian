@@ -12,9 +12,11 @@ function postJson(urlString, payload) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(payload);
     const url = new URL(urlString);
+    const timeoutMs = 10000;
 
     const options = {
       hostname: url.hostname,
+      port: url.port || undefined,
       path: url.pathname + url.search,
       method: "POST",
       headers: {
@@ -30,6 +32,10 @@ function postJson(urlString, payload) {
       } else {
         reject(new Error(`HTTP request failed with status ${res.statusCode}`));
       }
+    });
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms`));
     });
 
     req.on("error", reject);

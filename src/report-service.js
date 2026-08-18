@@ -5,24 +5,35 @@ const logger = require("./logger");
 /**
  * Quotes a value for safe inclusion in a CSV field.
  * Wraps in double quotes and escapes any internal double quotes.
- * Also prevents CSV formula injection by quoting values that start
+ * Also neutralizes spreadsheet formula execution when a value starts
  * with a formula trigger character (=, +, -, @).
  *
  * @param {*} value - Raw field value
  * @returns {string} Quoted CSV field
  */
 function csvField(value) {
-  const str = String(value ?? "");
+  let str = String(value ?? "");
+
+  if (/^[=+\-@]/.test(str)) {
+    str = `'${str}`;
+  }
+
   if (
     str.includes(",") ||
     str.includes('"') ||
     str.includes("\n") ||
-    str.includes("\r") ||
-    /^[=+\-@]/.test(str)
+    str.includes("\r")
   ) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
+
+function escapeMarkdownCell(value) {
+  return String(value ?? "")
+    .replace(/\|/g, "\\|")
+    .replace(/\r/g, " ")
+    .replace(/\n/g, " ");
 }
 
 class ReportService {
@@ -137,19 +148,19 @@ ${budgets
     const detailRows = [
       ...result.created.map(
         (u) =>
-          `| ${u.username || u.user} | ✅ Created | — | ${u.budget ?? "—"} |`
+          `| ${escapeMarkdownCell(u.username || u.user)} | ✅ Created | — | ${escapeMarkdownCell(u.budget ?? "—")} |`
       ),
       ...result.updated.map(
         (u) =>
-          `| ${u.user} | 🔄 Updated | ${u.from} | ${u.to} |`
+          `| ${escapeMarkdownCell(u.user)} | 🔄 Updated | ${escapeMarkdownCell(u.from)} | ${escapeMarkdownCell(u.to)} |`
       ),
       ...result.skipped.map(
         (u) =>
-          `| ${u.username || u.user} | ⏭️ Skipped | — | ${u.budget ?? "—"} |`
+          `| ${escapeMarkdownCell(u.username || u.user)} | ⏭️ Skipped | — | ${escapeMarkdownCell(u.budget ?? "—")} |`
       ),
       ...result.failed.map(
         (u) =>
-          `| ${u.user} | ❌ Failed | — | — |`
+          `| ${escapeMarkdownCell(u.user)} | ❌ Failed | — | — |`
       )
     ].join("\n");
 
@@ -158,10 +169,10 @@ ${budgets
       "",
       "| Field | Value |",
       "|-------|-------|",
-      `| **Repository** | ${repository} |`,
-      `| **Enterprise** | ${enterprise} |`,
-      `| **Workflow** | ${workflowName} |`,
-      `| **Execution Time** | ${executionTime} |`,
+      `| **Repository** | ${escapeMarkdownCell(repository)} |`,
+      `| **Enterprise** | ${escapeMarkdownCell(enterprise)} |`,
+      `| **Workflow** | ${escapeMarkdownCell(workflowName)} |`,
+      `| **Execution Time** | ${escapeMarkdownCell(executionTime)} |`,
       `| **Created** | ${result.created.length} |`,
       `| **Updated** | ${result.updated.length} |`,
       `| **Skipped** | ${result.skipped.length} |`,

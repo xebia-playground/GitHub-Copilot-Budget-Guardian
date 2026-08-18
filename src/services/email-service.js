@@ -9,7 +9,10 @@ const logger = require("../logger");
  * environment variables (GitHub Secrets exposed as env vars in the workflow).
  *
  * Required environment variables:
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, ADMIN_NOTIFICATION_EMAILS
+ *   SMTP_HOST, SMTP_USER, SMTP_PASSWORD, ADMIN_NOTIFICATION_EMAILS
+ *
+ * Optional environment variable:
+ *   SMTP_PORT (defaults to 587 when not provided)
  *
  * @param {object} context - Notification context
  * @param {string} context.repository - GitHub repository name

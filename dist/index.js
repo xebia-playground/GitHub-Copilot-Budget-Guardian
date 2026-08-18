@@ -53,6 +53,15 @@ var require_config = __commonJS({
   "src/config.js"(exports2, module2) {
     var core = require("@actions/core");
     var Config = class {
+      validateNotifyOn(notifyOn) {
+        const supportedValues = ["changes-only", "always"];
+        if (!supportedValues.includes(notifyOn)) {
+          throw new Error(
+            `Invalid notify-on value: ${notifyOn}. Supported values are: changes-only, always.`
+          );
+        }
+        return notifyOn;
+      }
       isGitHubActionsRuntime() {
         return process.env.GITHUB_ACTIONS === "true";
       }
@@ -99,7 +108,7 @@ var require_config = __commonJS({
           budgetFile: "examples/budgets.csv",
           dryRun: "true"
         };
-        return {
+        const cfg = {
           githubToken: this.getInput(
             "github-token",
             !localDefaults.githubToken,
@@ -132,6 +141,8 @@ var require_config = __commonJS({
             "changes-only"
           )
         };
+        cfg.notifyOn = this.validateNotifyOn(cfg.notifyOn);
+        return cfg;
       }
     };
     module2.exports = new Config();
@@ -1911,11 +1922,17 @@ var require_report_service = __commonJS({
     var path = require("path");
     var logger2 = require_logger();
     function csvField(value) {
-      const str = String(value ?? "");
-      if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r") || /^[=+\-@]/.test(str)) {
+      let str = String(value ?? "");
+      if (/^[=+\-@]/.test(str)) {
+        str = `'${str}`;
+      }
+      if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
         return `"${str.replace(/"/g, '""')}"`;
       }
       return str;
+    }
+    function escapeMarkdownCell(value) {
+      return String(value ?? "").replace(/\|/g, "\\|").replace(/\r/g, " ").replace(/\n/g, " ");
     }
     var ReportService = class {
       /**
@@ -2011,16 +2028,16 @@ ${budgets.map(
         const executionTime = context.executionTime || (/* @__PURE__ */ new Date()).toISOString();
         const detailRows = [
           ...result.created.map(
-            (u) => `| ${u.username || u.user} | \u2705 Created | \u2014 | ${u.budget ?? "\u2014"} |`
+            (u) => `| ${escapeMarkdownCell(u.username || u.user)} | \u2705 Created | \u2014 | ${escapeMarkdownCell(u.budget ?? "\u2014")} |`
           ),
           ...result.updated.map(
-            (u) => `| ${u.user} | \u{1F504} Updated | ${u.from} | ${u.to} |`
+            (u) => `| ${escapeMarkdownCell(u.user)} | \u{1F504} Updated | ${escapeMarkdownCell(u.from)} | ${escapeMarkdownCell(u.to)} |`
           ),
           ...result.skipped.map(
-            (u) => `| ${u.username || u.user} | \u23ED\uFE0F Skipped | \u2014 | ${u.budget ?? "\u2014"} |`
+            (u) => `| ${escapeMarkdownCell(u.username || u.user)} | \u23ED\uFE0F Skipped | \u2014 | ${escapeMarkdownCell(u.budget ?? "\u2014")} |`
           ),
           ...result.failed.map(
-            (u) => `| ${u.user} | \u274C Failed | \u2014 | \u2014 |`
+            (u) => `| ${escapeMarkdownCell(u.user)} | \u274C Failed | \u2014 | \u2014 |`
           )
         ].join("\n");
         const summary = [
@@ -2028,10 +2045,10 @@ ${budgets.map(
           "",
           "| Field | Value |",
           "|-------|-------|",
-          `| **Repository** | ${repository} |`,
-          `| **Enterprise** | ${enterprise} |`,
-          `| **Workflow** | ${workflowName} |`,
-          `| **Execution Time** | ${executionTime} |`,
+          `| **Repository** | ${escapeMarkdownCell(repository)} |`,
+          `| **Enterprise** | ${escapeMarkdownCell(enterprise)} |`,
+          `| **Workflow** | ${escapeMarkdownCell(workflowName)} |`,
+          `| **Execution Time** | ${escapeMarkdownCell(executionTime)} |`,
           `| **Created** | ${result.created.length} |`,
           `| **Updated** | ${result.updated.length} |`,
           `| **Skipped** | ${result.skipped.length} |`,
@@ -14222,8 +14239,10 @@ var require_utils = __commonJS({
       return new Promise((resolve, reject) => {
         const body = JSON.stringify(payload);
         const url = new URL2(urlString);
+        const timeoutMs = 1e4;
         const options = {
           hostname: url.hostname,
+          port: url.port || void 0,
           path: url.pathname + url.search,
           method: "POST",
           headers: {
@@ -14238,6 +14257,9 @@ var require_utils = __commonJS({
           } else {
             reject(new Error(`HTTP request failed with status ${res.statusCode}`));
           }
+        });
+        req.setTimeout(timeoutMs, () => {
+          req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms`));
         });
         req.on("error", reject);
         req.write(body);
@@ -14483,6 +14505,22 @@ var require_notification_service = __commonJS({
     var { sendEmail } = require_email_service();
     var { sendTeams } = require_teams_service();
     var { sendSlack } = require_slack_service();
+    function getErrorMessage(err) {
+      if (err instanceof Error && err.message) {
+        return err.message;
+      }
+      if (typeof err === "string") {
+        return err;
+      }
+      if (err === null || err === void 0) {
+        return "Unknown error";
+      }
+      try {
+        return JSON.stringify(err);
+      } catch (_) {
+        return String(err);
+      }
+    }
     async function runNotifications2(context, result, notifyOn) {
       const hasChanges = result.created.length > 0 || result.updated.length > 0 || result.failed.length > 0;
       if (notifyOn === "changes-only" && !hasChanges) {
@@ -14502,7 +14540,9 @@ var require_notification_service = __commonJS({
           try {
             await fn();
           } catch (err) {
-            logger2.warning(`${name} notification failed: ${err.message}`);
+            logger2.warning(
+              `${name} notification failed: ${getErrorMessage(err)}`
+            );
           }
         })
       );

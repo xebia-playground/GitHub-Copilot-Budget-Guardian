@@ -52,13 +52,6 @@ jobs:
           fi
           echo "Required secrets are configured."
 
-      # Debug Enterprise Slug
-      - name: Debug Enterprise Slug
-        env:
-          ENTERPRISE_SLUG: ${{ secrets.ENTERPRISE_SLUG }}
-        run: |
-          echo "Enterprise Slug: $ENTERPRISE_SLUG"
-
       # 6) Execute action in dry-run mode against example data
       - name: Execute GitHub Copilot Budget Guardian
         id: guardian
@@ -68,8 +61,15 @@ jobs:
           enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
           budget-file: examples/budgets.csv
           dry-run: "true"
-          report-format: markdown
-          alert-threshold: "80"
+          slack-webhook: ""
+          teams-webhook: ""
+          notify-on: changes-only
+        env:
+          SMTP_HOST: ""
+          SMTP_PORT: ""
+          SMTP_USER: ""
+          SMTP_PASSWORD: ""
+          ADMIN_NOTIFICATION_EMAILS: ""
 
       # 7) Verify and print action outputs
       - name: Verify outputs
@@ -82,22 +82,35 @@ jobs:
       # 8) Verify generated report files exist; fail immediately if missing
       - name: Verify generated reports
         run: |
-          test -f budget-report.md || { echo "Missing budget-report.md"; exit 1; }
-          test -f budget-report.json || { echo "Missing budget-report.json"; exit 1; }
-          test -f budget-report.csv || { echo "Missing budget-report.csv"; exit 1; }
+          test -f artifacts/budget-report.md || { echo "Missing artifacts/budget-report.md"; exit 1; }
+          test -f artifacts/budget-report.json || { echo "Missing artifacts/budget-report.json"; exit 1; }
+          test -f artifacts/budget-report.csv || { echo "Missing artifacts/budget-report.csv"; exit 1; }
           echo "All report files were generated successfully."
 
       # 9) Upload generated reports as workflow artifacts
       - name: Upload report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: budget-reports
-          path: |
-            budget-report.md
-            budget-report.json
-            budget-report.csv
+          name: budget-sync-report
+          path: artifacts/
+          retention-days: 7
 
-      # 10) Publish a concise run summary in GitHub Step Summary
+      # 10) Clean up local artifacts to keep repository workspace clean
+      - name: Cleanup local artifacts
+        if: success()
+        run: rm -rf artifacts
+
+      # 11) Verify report files are not left in repository root
+      - name: Verify repository cleanliness for reports
+        if: success()
+        run: |
+          if git status --porcelain | grep -E "(^| )budget-report\\.(md|json|csv)$"; then
+            echo "Unexpected generated report file found in repository root"
+            exit 1
+          fi
+          echo "No generated budget-report files detected in repository root."
+
+      # 12) Publish a concise run summary in GitHub Step Summary
       - name: Publish integration test summary
         run: |
           {
@@ -106,6 +119,6 @@ jobs:
             echo "- Updated: ${{ steps.guardian.outputs.updated }}"
             echo "- Skipped: ${{ steps.guardian.outputs.skipped }}"
             echo "- Failed: ${{ steps.guardian.outputs.failed }}"
-            echo "- Report files generated: budget-report.md, budget-report.json, budget-report.csv"
+            echo "- Report artifact: budget-sync-report (retention: 7 days)"
             echo "- Workflow completed successfully"
           } >> "$GITHUB_STEP_SUMMARY"

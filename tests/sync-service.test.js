@@ -134,7 +134,7 @@ describe("sync-service.sync", () => {
 
     const result = await syncService.sync(budgets, githubClient, config);
 
-    expect(result.created).toHaveLength(1);
+    expect(result.created).toHaveLength(0);
     expect(result.failed).toEqual([
       {
         user: "alice",

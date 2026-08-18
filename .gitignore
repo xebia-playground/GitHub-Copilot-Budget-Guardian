@@ -1,1 +1,5 @@
 node_modules/
+artifacts/
+budget-report.md
+budget-report.json
+budget-report.csv

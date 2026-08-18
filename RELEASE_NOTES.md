@@ -45,10 +45,9 @@ GitHub Copilot Budget Guardian v1.0.0 is the first production release focused on
 - enterprise-slug
 - budget-file
 - dry-run
-- report-format
-- alert-threshold
 - slack-webhook
 - teams-webhook
+- notify-on
 
 ## Compatibility
 
@@ -64,7 +63,7 @@ GitHub Copilot Budget Guardian v1.0.0 is the first production release focused on
 
 ## Known Limitations
 
-- Notification webhook integrations are input-ready and can be expanded further in upcoming versions.
+- Notification delivery is best-effort and depends on external webhook/SMTP availability.
 
 ## Next Steps
 

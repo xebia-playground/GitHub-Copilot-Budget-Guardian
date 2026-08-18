@@ -96,8 +96,6 @@ class SyncService {
         // CREATE
         // ------------------------
         if (!existing) {
-          result.created.push(budget);
-
           logger.info(
             `CREATE -> ${budget.username}`
           );
@@ -118,6 +116,8 @@ class SyncService {
             );
           }
 
+          result.created.push(budget);
+
           continue;
         }
 
@@ -128,12 +128,6 @@ class SyncService {
           Number(existing.budget_amount) !==
           Number(budget.budget)
         ) {
-          result.updated.push({
-            user: budget.username,
-            from: existing.budget_amount,
-            to: budget.budget
-          });
-
           logger.info(
             `UPDATE -> ${budget.username} (${existing.budget_amount} → ${budget.budget})`
           );
@@ -153,6 +147,12 @@ class SyncService {
               }
             );
           }
+
+          result.updated.push({
+            user: budget.username,
+            from: existing.budget_amount,
+            to: budget.budget
+          });
         } else {
           // ------------------------
           // SKIP

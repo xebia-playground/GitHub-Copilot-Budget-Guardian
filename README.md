@@ -1,36 +1,116 @@
 # GitHub Copilot Budget Guardian
 
-An enterprise GitHub Action for managing and synchronizing GitHub Copilot budgets from a simple CSV configuration.
+GitHub Copilot Budget Guardian is a GitHub Action for managing GitHub Copilot enterprise budgets as code.
+Define desired budgets in a CSV file, then let the Action validate data, compare with Enterprise state, apply CREATE or UPDATE changes when needed, SKIP unchanged users, generate reports, and optionally notify administrators.
 
 [![CI](https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian/actions/workflows/test.yml/badge.svg)](https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/xebia-playground/GitHub-Copilot-Budget-Guardian)](https://github.com/xebia-playground/GitHub-Copilot-Budget-Guardian/releases)
 
-## What it does
+For current repository usage before the first stable release tag, reference this Action as xebia-playground/GitHub-Copilot-Budget-Guardian@main.
+After the first release tag is published, use the corresponding version tag such as @v1.
 
-- Synchronizes Copilot budgets
-- Creates new user budgets
-- Updates changed budgets
-- Skips unchanged budgets
-- Generates CSV, JSON, and Markdown reports
-- Uploads reports as GitHub Actions artifacts
-- Provides a GitHub Job Summary
-- Supports optional admin notifications
+## Why use it?
 
-## Simple Architecture Diagram
+Managing Copilot budgets manually is repetitive and hard to audit.
+This Action makes budget operations predictable, reviewable, and repeatable in CI.
+
+Without automation:
+
+CSV or ticket request
+-> Admin checks current budgets manually
+-> Manual changes in Enterprise settings
+-> Manual verification
+-> Manual reporting
+
+With GitHub Copilot Budget Guardian:
+
+CSV
+-> Validate
+-> Fetch existing Enterprise budgets
+-> Compare
+-> CREATE / UPDATE / SKIP
+-> Reports + Job Summary
+-> Optional notifications
 
 ```mermaid
 flowchart LR
     A[Budget CSV] --> B[GitHub Action]
     B --> C[Validate]
-    C --> D[Compare Budgets]
-    D --> E[Create / Update / Skip]
-    E --> F[Reports]
-    F --> G[GitHub Artifacts]
-    E --> H[Job Summary]
-    E --> I[Optional Notifications]
+    C --> D[Fetch Existing Budgets]
+    D --> E[Compare]
+    E --> F{Change?}
+    F -->|New user| G[CREATE]
+    F -->|Budget changed| H[UPDATE]
+    F -->|No change| I[SKIP]
+    G --> J[Reports]
+    H --> J
+    I --> J
+    J --> K[GitHub Artifact]
+    J --> L[Job Summary]
+    G --> M[Notifications]
+    H --> M
 ```
 
-## Quick Start
+## What happens when the Action runs?
+
+1. Reads your budget CSV file.
+2. Validates usernames and budget values.
+3. Fetches existing Copilot budgets from your Enterprise.
+4. Compares each CSV row with current Enterprise state.
+5. Applies:
+   - CREATE for a user that does not yet have a budget.
+   - UPDATE when an existing budget amount is different.
+   - SKIP when the budget already matches.
+6. Captures any per-user API failures in failed results.
+7. Generates three reports in artifacts/.
+8. Writes a GitHub Job Summary with totals and per-user status.
+9. Sends optional Email, Teams, and Slack notifications.
+
+## Prerequisites
+
+- A GitHub repository where this Action runs.
+- GitHub Enterprise with Copilot budget API access.
+- A Personal Access Token for Enterprise budget operations.
+- A budget CSV file committed to your repository.
+
+### Token and permissions
+
+Input github-token must be a PAT that has sufficient Enterprise permissions to read and update Copilot budgets.
+If permissions are insufficient, budget fetch or update calls will fail.
+
+## Required and optional secrets
+
+Store secrets in GitHub Secrets.
+
+| Secret | Required | Purpose |
+|---|---|---|
+| ENTERPRISE_ADMIN_PAT | Yes | Token passed to github-token |
+| ENTERPRISE_SLUG | Yes | Enterprise identifier |
+| ADMIN_NOTIFICATION_EMAILS | Optional | Comma-separated admin recipients for email notifications |
+| SMTP_HOST | Optional | SMTP host |
+| SMTP_PORT | Optional | SMTP port |
+| SMTP_USER | Optional | SMTP username |
+| SMTP_PASSWORD | Optional | SMTP password |
+| TEAMS_WEBHOOK | Optional | Microsoft Teams webhook URL |
+| SLACK_WEBHOOK | Optional | Slack webhook URL |
+
+If optional notification secrets are missing, synchronization still completes.
+
+## Recommended Production Flow
+
+CSV
+-> Secrets
+-> Dry Run
+-> Review Results
+-> Download Reports
+-> dry-run:false
+-> Real Budget Update
+-> Notifications
+
+## Quick start
+
+Use dry run first.
 
 ```yaml
 name: Copilot Budget Sync
@@ -48,17 +128,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync Copilot Budgets
+      - name: Run Budget Guardian
         id: guardian
-        uses: xebia-playground/GitHub-Copilot-Budget-Guardian@v1
+        uses: xebia-playground/GitHub-Copilot-Budget-Guardian@main
         with:
           github-token: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
           enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
           budget-file: budgets.csv
           dry-run: "true"
-          notify-on: changes-only
 
-      - name: Upload Budget Reports
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
           name: budget-sync-report
@@ -66,92 +145,102 @@ jobs:
           retention-days: 7
 ```
 
-## Budget CSV
+## Budget CSV guide
+
+### CSV format
 
 ```csv
 username,budget,team,reason
-user1,5,Platform,Testing
-user2,10,Engineering,Monthly budget
+alice,5,Platform,Initial rollout
+bob,10,Engineering,Monthly allocation
 ```
 
 | Column | Required | Description |
 |---|---|---|
 | username | Yes | GitHub username |
-| budget | Yes | Copilot budget value |
+| budget | Yes | Budget value |
 | team | No | Team label for reporting |
-| reason | No | Business context for the budget |
+| reason | No | Reason shown in reports |
 
-## How it works
+### How to add a new user
 
-1. Read CSV.
-2. Validate budgets.
-3. Compare with Enterprise budgets.
-4. Create, update, or skip.
-5. Generate reports and job summary.
+1. Add a new row to the CSV with username and budget.
+2. Commit and run the workflow.
+3. If the user has no existing budget, status will be CREATE.
 
-## Reports
+### CREATE / UPDATE / SKIP behavior
 
-After the workflow completes:
+- CREATE: no existing budget found for the username.
+- UPDATE: existing budget found but amount differs.
+- SKIP: existing budget amount already matches CSV.
 
-Actions
--> Workflow Run
--> Artifacts
--> budget-sync-report
+## Dry run and real updates
 
-The artifact ZIP contains:
+### Safe testing with dry run
 
-- budget-report.csv
-- budget-report.json
-- budget-report.md
-
-## Notifications
-
-Optional notifications are available for:
-
-- Email
-- Microsoft Teams
-- Slack
-
-Notifications are intended for Enterprise Administrators and should be configured with GitHub Secrets.
-
-For detailed setup examples, see docs/api.md.
-
-## Secrets
-
-| Secret | Required | Purpose |
-|---|---|---|
-| ENTERPRISE_ADMIN_PAT | Yes | Enterprise budget access |
-| ENTERPRISE_SLUG | Yes | Enterprise identifier |
-| ADMIN_NOTIFICATION_EMAILS | Optional | Admin notification recipients |
-| SMTP_HOST | Optional | Email server |
-| SMTP_PORT | Optional | Email server port |
-| SMTP_USER | Optional | Email account |
-| SMTP_PASSWORD | Optional | Email authentication |
-| TEAMS_WEBHOOK | Optional | Teams notifications |
-| SLACK_WEBHOOK | Optional | Slack notifications |
-
-Notification secrets are optional.
-
-## Dry Run
-
-Use:
+Set:
 
 ```text
 dry-run: "true"
 ```
 
-This previews changes without modifying Enterprise budgets. Start with dry-run before enabling live updates.
+Dry run performs validation and comparison, generates reports, and outputs counts, but does not apply budget changes.
+
+### Real budget changes
+
+Set:
+
+```text
+dry-run: "false"
+```
+
+Then CREATE and UPDATE operations are sent to the Enterprise API.
+Use dry run first, review reports, then switch to false.
+
+## Reports and where to find them
+
+Each run generates:
+
+- artifacts/budget-report.csv
+- artifacts/budget-report.json
+- artifacts/budget-report.md
+
+Where to download after a run:
+
+Actions
+-> Workflow run
+-> Artifacts
+-> budget-sync-report
+
+### What each report contains
+
+- budget-report.csv: tabular export for spreadsheets and downstream automation.
+- budget-report.json: structured summary and budget records for integrations.
+- budget-report.md: human-readable report for quick review.
+
+## Job summary
+
+The workflow step summary includes:
+
+- Repository
+- Enterprise
+- Workflow
+- Execution Time
+- Created / Updated / Skipped / Failed counts
+- Changed users table with status and budget comparison
 
 ## Inputs
 
+Inputs are sourced from action.yml.
+
 | Input | Required | Default | Description |
 |---|---|---|---|
-| github-token | Yes | - | GitHub PAT with Enterprise budget permissions |
+| github-token | Yes | - | GitHub PAT with Enterprise permissions |
 | enterprise-slug | Yes | - | GitHub Enterprise slug |
-| budget-file | No | budgets.csv | Path to budget CSV |
-| dry-run | No | false | Preview mode without write operations |
-| slack-webhook | No | - | Slack Incoming Webhook URL |
-| teams-webhook | No | - | Microsoft Teams Incoming Webhook URL |
+| budget-file | No | budgets.csv | Path to the CSV file |
+| dry-run | No | false | Preview mode (no write operations) |
+| slack-webhook | No | - | Slack incoming webhook URL |
+| teams-webhook | No | - | Teams incoming webhook URL |
 | notify-on | No | changes-only | Notification policy: always or changes-only |
 
 ## Outputs
@@ -163,24 +252,93 @@ This previews changes without modifying Enterprise budgets. Start with dry-run b
 | skipped | Number of budgets skipped |
 | failed | Number of failed budget operations |
 
-## Troubleshooting
+## Notifications
 
-- Invalid PAT permissions: verify Enterprise budget API access.
-- Wrong enterprise slug: verify ENTERPRISE_SLUG.
-- CSV validation failure: verify required columns and numeric budget values.
-- Missing report artifact: verify upload step points to artifacts/.
-- Notification configuration missing: verify optional secrets are set correctly.
+Notification channels are optional:
+
+- Email via SMTP (recipients from ADMIN_NOTIFICATION_EMAILS)
+- Microsoft Teams via teams-webhook
+- Slack via slack-webhook
+
+### Optional notification configuration example
+
+```yaml
+- name: Run Budget Guardian with notifications
+  uses: xebia-playground/GitHub-Copilot-Budget-Guardian@main
+  with:
+    github-token: ${{ secrets.ENTERPRISE_ADMIN_PAT }}
+    enterprise-slug: ${{ secrets.ENTERPRISE_SLUG }}
+    budget-file: budgets.csv
+    dry-run: "false"
+    notify-on: changes-only
+    slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+    teams-webhook: ${{ secrets.TEAMS_WEBHOOK }}
+  env:
+    SMTP_HOST: ${{ secrets.SMTP_HOST }}
+    SMTP_PORT: ${{ secrets.SMTP_PORT }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+    ADMIN_NOTIFICATION_EMAILS: ${{ secrets.ADMIN_NOTIFICATION_EMAILS }}
+```
+
+### Who receives notifications?
+
+- Email: addresses listed in ADMIN_NOTIFICATION_EMAILS.
+- Teams: destination configured by the Teams webhook URL.
+- Slack: destination configured by the Slack webhook URL.
+
+### What if notification config is missing?
+
+That channel is skipped gracefully and synchronization continues.
+Notification failures do not fail synchronization.
+
+### What if there are no changes?
+
+When notify-on is changes-only and created=0, updated=0, failed=0, notifications are skipped.
+Reports and summary are still generated.
+
+## Scheduling
+
+You can run manually or on a schedule.
+
+```yaml
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday at 06:00 UTC
+```
+
+## Common errors and fixes
+
+- Invalid PAT permissions
+  - Symptom: fetch/update failures from Enterprise API.
+  - Fix: use a PAT with required Enterprise budget permissions.
+
+- Wrong enterprise slug
+  - Symptom: budgets cannot be fetched.
+  - Fix: verify ENTERPRISE_SLUG value.
+
+- CSV validation failure
+  - Symptom: action fails before synchronization.
+  - Fix: ensure username is present, budget is numeric, usernames are unique.
+
+- Reports not found in artifact
+  - Symptom: missing report files after run.
+  - Fix: ensure upload step uses path artifacts/.
+
+- Notification not sent
+  - Symptom: no Email/Teams/Slack message.
+  - Fix: verify channel-specific secrets and webhook values.
 
 ## Security
 
-- Store credentials only in GitHub Secrets.
-- Never commit PATs, passwords, or webhook URLs.
-- Notifications are optional.
-- CI integration tests are configured to avoid sending real external notifications.
+- Keep all credentials in GitHub Secrets.
+- Never commit PATs, SMTP credentials, or webhook URLs.
+- External notifications are optional and can be disabled per workflow.
 
 ## Contributing
 
-See CONTRIBUTING.md for contribution guidelines.
+See CONTRIBUTING.md.
 
 ## License
 

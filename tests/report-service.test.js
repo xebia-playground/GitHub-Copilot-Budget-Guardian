@@ -118,6 +118,29 @@ describe("report-service.generate", () => {
       "' =1+1,'  +SUM(A1:A2),' -10,' @test"
     );
   });
+
+  test("escapes dynamic markdown report row values", () => {
+    const budgets = [
+      {
+        username: "alice|admin\nroot",
+        budget: "10\r20",
+        team: "Platform|Core",
+        reason: "hello\nworld"
+      }
+    ];
+
+    reportService.generate(budgets, {
+      created: [],
+      updated: [],
+      skipped: [],
+      failed: []
+    });
+
+    const markdownOutput = fs.writeFileSync.mock.calls[0][1];
+    expect(markdownOutput).toContain(
+      "| alice\\|admin root | 10 20 | Platform\\|Core | hello world |"
+    );
+  });
 });
 
 describe("report-service.writeJobSummary", () => {

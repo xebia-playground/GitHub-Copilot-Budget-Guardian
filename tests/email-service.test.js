@@ -35,14 +35,8 @@ describe("email-service.sendEmail", () => {
     mockSendMail = jest.fn().mockResolvedValue({});
     mockCreateTransport = jest.fn().mockReturnValue({ sendMail: mockSendMail });
 
-    jest.mock("nodemailer", () => ({
+    jest.doMock("nodemailer", () => ({
       createTransport: mockCreateTransport
-    }));
-
-    jest.mock("../src/logger", () => ({
-      success: jest.fn(),
-      warning: jest.fn(),
-      info: jest.fn()
     }));
 
     sendEmail = require("../src/services/email-service").sendEmail;

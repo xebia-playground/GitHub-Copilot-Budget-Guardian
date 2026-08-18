@@ -80,7 +80,7 @@ class ReportService {
 ${budgets
   .map(
     (u) =>
-      `| ${u.username} | ${u.budget} | ${u.team} | ${u.reason} |`
+      `| ${escapeMarkdownCell(u.username)} | ${escapeMarkdownCell(u.budget)} | ${escapeMarkdownCell(u.team)} | ${escapeMarkdownCell(u.reason)} |`
   )
   .join("\n")}
 `;

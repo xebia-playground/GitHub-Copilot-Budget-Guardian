@@ -65,6 +65,18 @@ describe("teams-service.sendTeams", () => {
     );
   });
 
+  test("uses ColumnSet rows instead of Adaptive Card Table", async () => {
+    await sendTeams(baseContext, baseResult);
+
+    const [, payload] = postJson.mock.calls[0];
+    const card = payload.attachments[0].content;
+    const tableElements = card.body.filter((b) => b.type === "Table");
+    const columnSets = card.body.filter((b) => b.type === "ColumnSet");
+
+    expect(tableElements).toHaveLength(0);
+    expect(columnSets.length).toBeGreaterThan(0);
+  });
+
   test("includes repository and enterprise in FactSet", async () => {
     await sendTeams(baseContext, baseResult);
 
@@ -77,6 +89,28 @@ describe("teams-service.sendTeams", () => {
 
     const repoFact = factSet.facts.find((f) => f.title === "Repository");
     expect(repoFact.value).toBe("acme/copilot");
+  });
+
+  test("includes user, status, previous budget, and new budget columns", async () => {
+    await sendTeams(baseContext, baseResult);
+
+    const [, payload] = postJson.mock.calls[0];
+    const card = payload.attachments[0].content;
+    const columnSets = card.body.filter((b) => b.type === "ColumnSet");
+    const header = columnSets[0];
+    const updatedRow = columnSets.find((row) =>
+      row.columns?.some((col) => col.items?.some((item) => item.text === "Updated"))
+    );
+
+    expect(header.columns.map((col) => col.items[0].text)).toEqual([
+      "User",
+      "Status",
+      "Previous",
+      "New"
+    ]);
+    expect(updatedRow.columns[0].items[0].text).toBe("bob");
+    expect(updatedRow.columns[2].items[0].text).toBe("100");
+    expect(updatedRow.columns[3].items[0].text).toBe("200");
   });
 
   test("includes workflow run URL as an action", async () => {

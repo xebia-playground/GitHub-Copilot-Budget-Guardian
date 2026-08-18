@@ -1973,7 +1973,7 @@ var require_report_service = __commonJS({
 | Username | Budget | Team | Reason |
 |----------|-------:|------|--------|
 ${budgets.map(
-          (u) => `| ${u.username} | ${u.budget} | ${u.team} | ${u.reason} |`
+          (u) => `| ${escapeMarkdownCell(u.username)} | ${escapeMarkdownCell(u.budget)} | ${escapeMarkdownCell(u.team)} | ${escapeMarkdownCell(u.reason)} |`
         ).join("\n")}
 `;
         fs.writeFileSync(path.join(artifactDir, "budget-report.md"), markdown);
@@ -14285,47 +14285,26 @@ var require_teams_service = __commonJS({
         return;
       }
       const statusColor = result.failed.length > 0 ? "Attention" : result.created.length + result.updated.length > 0 ? "Good" : "Default";
-      const changedUserRows = [
-        ...result.created.map((u) => buildTableRow(u.username || u.user, "Created", "Good")),
+      const userStatusRows = [
+        ...result.created.map(
+          (u) => buildStatusRow(u.username || u.user, "Created", "\u2014", u.budget ?? "\u2014", "Good")
+        ),
         ...result.updated.map(
-          (u) => buildTableRow(u.user, `Updated (${u.from} \u2192 ${u.to})`, "Accent")
+          (u) => buildStatusRow(u.user, "Updated", u.from ?? "\u2014", u.to ?? "\u2014", "Accent")
         ),
         ...result.failed.map(
-          (u) => buildTableRow(u.user, `Failed: ${u.error}`, "Attention")
+          (u) => buildStatusRow(u.user, `Failed: ${u.error}`, "\u2014", "\u2014", "Attention")
         )
       ];
-      const tableSection = changedUserRows.length > 0 ? [
+      const statusSection = userStatusRows.length > 0 ? [
         {
           type: "TextBlock",
-          text: "Changed Users",
+          text: "User Budget Status",
           weight: "Bolder",
           spacing: "Medium"
         },
-        {
-          type: "Table",
-          columns: [{ width: 1 }, { width: 2 }],
-          rows: [
-            {
-              type: "TableRow",
-              style: "emphasis",
-              cells: [
-                {
-                  type: "TableCell",
-                  items: [
-                    { type: "TextBlock", text: "User", weight: "Bolder" }
-                  ]
-                },
-                {
-                  type: "TableCell",
-                  items: [
-                    { type: "TextBlock", text: "Status", weight: "Bolder" }
-                  ]
-                }
-              ]
-            },
-            ...changedUserRows
-          ]
-        }
+        buildHeaderRow(),
+        ...userStatusRows
       ] : [];
       const payload = {
         type: "message",
@@ -14357,7 +14336,7 @@ var require_teams_service = __commonJS({
                     { title: "Failed", value: String(result.failed.length) }
                   ]
                 },
-                ...tableSection,
+                ...statusSection,
                 {
                   type: "TextBlock",
                   text: "Full reports are available in GitHub Actions Artifacts (budget-sync-report).",
@@ -14380,19 +14359,58 @@ var require_teams_service = __commonJS({
       await postJson(webhookUrl, payload);
       logger2.success("Microsoft Teams notification sent.");
     }
-    function buildTableRow(user, statusText, color) {
+    function buildHeaderRow() {
       return {
-        type: "TableRow",
-        cells: [
+        type: "ColumnSet",
+        spacing: "Small",
+        columns: [
           {
-            type: "TableCell",
-            items: [{ type: "TextBlock", text: user, wrap: true }]
+            type: "Column",
+            width: 2,
+            items: [{ type: "TextBlock", text: "User", weight: "Bolder", wrap: true }]
           },
           {
-            type: "TableCell",
-            items: [
-              { type: "TextBlock", text: statusText, color, wrap: true }
-            ]
+            type: "Column",
+            width: 2,
+            items: [{ type: "TextBlock", text: "Status", weight: "Bolder", wrap: true }]
+          },
+          {
+            type: "Column",
+            width: 1,
+            items: [{ type: "TextBlock", text: "Previous", weight: "Bolder", wrap: true }]
+          },
+          {
+            type: "Column",
+            width: 1,
+            items: [{ type: "TextBlock", text: "New", weight: "Bolder", wrap: true }]
+          }
+        ]
+      };
+    }
+    function buildStatusRow(user, statusText, previousBudget, newBudget, color) {
+      return {
+        type: "ColumnSet",
+        spacing: "Small",
+        columns: [
+          {
+            type: "Column",
+            width: 2,
+            items: [{ type: "TextBlock", text: String(user), wrap: true }]
+          },
+          {
+            type: "Column",
+            width: 2,
+            items: [{ type: "TextBlock", text: String(statusText), color, wrap: true }]
+          },
+          {
+            type: "Column",
+            width: 1,
+            items: [{ type: "TextBlock", text: String(previousBudget), wrap: true }]
+          },
+          {
+            type: "Column",
+            width: 1,
+            items: [{ type: "TextBlock", text: String(newBudget), wrap: true }]
           }
         ]
       };

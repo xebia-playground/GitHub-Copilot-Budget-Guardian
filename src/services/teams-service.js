@@ -34,50 +34,29 @@ async function sendTeams(context, result) {
       ? "Good"
       : "Default";
 
-  const changedUserRows = [
-    ...result.created.map((u) => buildTableRow(u.username || u.user, "Created", "Good")),
+  const userStatusRows = [
+    ...result.created.map((u) =>
+      buildStatusRow(u.username || u.user, "Created", "—", u.budget ?? "—", "Good")
+    ),
     ...result.updated.map((u) =>
-      buildTableRow(u.user, `Updated (${u.from} → ${u.to})`, "Accent")
+      buildStatusRow(u.user, "Updated", u.from ?? "—", u.to ?? "—", "Accent")
     ),
     ...result.failed.map((u) =>
-      buildTableRow(u.user, `Failed: ${u.error}`, "Attention")
+      buildStatusRow(u.user, `Failed: ${u.error}`, "—", "—", "Attention")
     )
   ];
 
-  const tableSection =
-    changedUserRows.length > 0
+  const statusSection =
+    userStatusRows.length > 0
       ? [
           {
             type: "TextBlock",
-            text: "Changed Users",
+            text: "User Budget Status",
             weight: "Bolder",
             spacing: "Medium"
           },
-          {
-            type: "Table",
-            columns: [{ width: 1 }, { width: 2 }],
-            rows: [
-              {
-                type: "TableRow",
-                style: "emphasis",
-                cells: [
-                  {
-                    type: "TableCell",
-                    items: [
-                      { type: "TextBlock", text: "User", weight: "Bolder" }
-                    ]
-                  },
-                  {
-                    type: "TableCell",
-                    items: [
-                      { type: "TextBlock", text: "Status", weight: "Bolder" }
-                    ]
-                  }
-                ]
-              },
-              ...changedUserRows
-            ]
-          }
+          buildHeaderRow(),
+          ...userStatusRows
         ]
       : [];
 
@@ -111,7 +90,7 @@ async function sendTeams(context, result) {
                 { title: "Failed", value: String(result.failed.length) }
               ]
             },
-            ...tableSection,
+            ...statusSection,
             {
               type: "TextBlock",
               text: "Full reports are available in GitHub Actions Artifacts (budget-sync-report).",
@@ -138,26 +117,73 @@ async function sendTeams(context, result) {
 }
 
 /**
- * Builds an Adaptive Card TableRow for a changed user.
+ * Builds an Adaptive Card header row using ColumnSet for Teams compatibility.
+ *
+ * @returns {object} Adaptive Card ColumnSet
+ */
+function buildHeaderRow() {
+  return {
+    type: "ColumnSet",
+    spacing: "Small",
+    columns: [
+      {
+        type: "Column",
+        width: 2,
+        items: [{ type: "TextBlock", text: "User", weight: "Bolder", wrap: true }]
+      },
+      {
+        type: "Column",
+        width: 2,
+        items: [{ type: "TextBlock", text: "Status", weight: "Bolder", wrap: true }]
+      },
+      {
+        type: "Column",
+        width: 1,
+        items: [{ type: "TextBlock", text: "Previous", weight: "Bolder", wrap: true }]
+      },
+      {
+        type: "Column",
+        width: 1,
+        items: [{ type: "TextBlock", text: "New", weight: "Bolder", wrap: true }]
+      }
+    ]
+  };
+}
+
+/**
+ * Builds a Teams-compatible status row using ColumnSet.
  *
  * @param {string} user - Username
  * @param {string} statusText - Status description
+ * @param {string|number} previousBudget - Previous budget display value
+ * @param {string|number} newBudget - New budget display value
  * @param {string} color - Adaptive Card color token
- * @returns {object} Adaptive Card TableRow
+ * @returns {object} Adaptive Card ColumnSet
  */
-function buildTableRow(user, statusText, color) {
+function buildStatusRow(user, statusText, previousBudget, newBudget, color) {
   return {
-    type: "TableRow",
-    cells: [
+    type: "ColumnSet",
+    spacing: "Small",
+    columns: [
       {
-        type: "TableCell",
-        items: [{ type: "TextBlock", text: user, wrap: true }]
+        type: "Column",
+        width: 2,
+        items: [{ type: "TextBlock", text: String(user), wrap: true }]
       },
       {
-        type: "TableCell",
-        items: [
-          { type: "TextBlock", text: statusText, color, wrap: true }
-        ]
+        type: "Column",
+        width: 2,
+        items: [{ type: "TextBlock", text: String(statusText), color, wrap: true }]
+      },
+      {
+        type: "Column",
+        width: 1,
+        items: [{ type: "TextBlock", text: String(previousBudget), wrap: true }]
+      },
+      {
+        type: "Column",
+        width: 1,
+        items: [{ type: "TextBlock", text: String(newBudget), wrap: true }]
       }
     ]
   };

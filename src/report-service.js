@@ -42,6 +42,9 @@ class ReportService {
    * Generates budget-report.md, budget-report.csv, and budget-report.json
    * under the artifacts/ directory.
    *
+   * Reports include per-user synchronization results (created, updated, skipped, failed).
+   * This provides an audit trail of what actions were taken during the synchronization.
+   *
    * @param {Array<object>} budgets - Array of budget records from the CSV file
    * @param {object} [result={}] - Sync result containing created, updated, skipped, failed arrays
    * @returns {void}
@@ -59,6 +62,45 @@ class ReportService {
       generated: new Date().toISOString()
     };
 
+    // Build per-user status map for detailed reporting
+    const userStatus = new Map();
+
+    result.created?.forEach((u) => {
+      userStatus.set(u.username, {
+        username: u.username,
+        requestedBudget: u.budget,
+        action: "CREATED",
+        error: null
+      });
+    });
+
+    result.updated?.forEach((u) => {
+      userStatus.set(u.user, {
+        username: u.user,
+        previousBudget: u.from,
+        requestedBudget: u.to,
+        action: "UPDATED",
+        error: null
+      });
+    });
+
+    result.skipped?.forEach((u) => {
+      userStatus.set(u.username, {
+        username: u.username,
+        requestedBudget: u.budget,
+        action: "SKIPPED",
+        error: null
+      });
+    });
+
+    result.failed?.forEach((u) => {
+      userStatus.set(u.user, {
+        username: u.user,
+        action: "FAILED",
+        error: u.error
+      });
+    });
+
     // Markdown Report
     const markdown = `# GitHub Copilot Budget Guardian Report
 
@@ -73,7 +115,22 @@ class ReportService {
 | Failed | ${summary.failed} |
 | Generated | ${summary.generated} |
 
-## Budget Details
+## Synchronization Results
+
+| Username | Requested Budget | Previous Budget | Action | Error |
+|----------|------------------:|-----------------|--------|-------|
+${Array.from(userStatus.values())
+  .map(
+    (u) => {
+      const requestedBudget = u.requestedBudget ? escapeMarkdownCell(u.requestedBudget) : "—";
+      const previousBudget = u.previousBudget ? escapeMarkdownCell(u.previousBudget) : "—";
+      const error = u.error ? escapeMarkdownCell(u.error) : "—";
+      return `| ${escapeMarkdownCell(u.username)} | ${requestedBudget} | ${previousBudget} | ${u.action} | ${error} |`;
+    }
+  )
+  .join("\n")}
+
+## Budget Input Data
 
 | Username | Budget | Team | Reason |
 |----------|-------:|------|--------|
@@ -87,24 +144,28 @@ ${budgets
 
     fs.writeFileSync(path.join(artifactDir, "budget-report.md"), markdown);
 
-    // JSON Report
+    // JSON Report with structured result data
     fs.writeFileSync(
       path.join(artifactDir, "budget-report.json"),
       JSON.stringify(
         {
           summary,
-          budgets
+          synchronization: Array.from(userStatus.values()),
+          input: budgets
         },
         null,
         2
       )
     );
 
-    // CSV Report
-    let csv = "username,budget,team,reason\n";
+    // CSV Report with per-user status
+    let csv = "username,action,requested_budget,previous_budget,error\n";
 
-    budgets.forEach((u) => {
-      csv += `${csvField(u.username)},${csvField(u.budget)},${csvField(u.team)},${csvField(u.reason)}\n`;
+    Array.from(userStatus.values()).forEach((u) => {
+      const requestedBudget = u.requestedBudget ?? "";
+      const previousBudget = u.previousBudget ?? "";
+      const error = u.error ?? "";
+      csv += `${csvField(u.username)},${csvField(u.action)},${csvField(requestedBudget)},${csvField(previousBudget)},${csvField(error)}\n`;
     });
 
     fs.writeFileSync(

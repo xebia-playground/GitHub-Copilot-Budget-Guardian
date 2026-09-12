@@ -17,6 +17,7 @@ class SyncService {
     };
 
     let existingBudgets = [];
+    let fetchFailed = false;
 
     // Fetch existing budgets
     if (githubClient && config.enterpriseSlug) {
@@ -74,8 +75,24 @@ class SyncService {
           );
         }
 
+        fetchFailed = true;
+
+        // CRITICAL SAFETY CHECK: In production mode (dry-run = false),
+        // we must not proceed without knowing the existing Enterprise state.
+        // Continuing with an empty list would cause the Action to attempt
+        // CREATE operations for all users, which is unsafe.
+        if (!config.dryRun) {
+          throw new Error(
+            "Unable to retrieve existing Copilot budgets from GitHub Enterprise. " +
+            "Synchronization was stopped to prevent changes based on incomplete Enterprise state. " +
+            "Please verify GitHub Enterprise connectivity and PAT permissions, then retry."
+          );
+        }
+
+        // In dry-run mode, we can continue with validation-only behavior.
         logger.warning(
-          "Unable to fetch existing budgets. Running in local mode."
+          "Unable to fetch existing budgets. Proceeding in validation-only mode. " +
+          "Actual budget operations will not be performed."
         );
       }
     }

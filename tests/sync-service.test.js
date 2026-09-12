@@ -95,7 +95,7 @@ describe("sync-service.sync", () => {
     expect(githubClient.updateBudget).not.toHaveBeenCalled();
   });
 
-  test("continues in local mode when fetching existing budgets fails", async () => {
+  test("fails immediately when fetching existing budgets fails in production mode (dry-run=false)", async () => {
     const budgets = [{ username: "alice", budget: 100 }];
 
     const githubClient = {
@@ -109,13 +109,36 @@ describe("sync-service.sync", () => {
       dryRun: false
     };
 
+    await expect(syncService.sync(budgets, githubClient, config)).rejects.toThrow(
+      "Unable to retrieve existing Copilot budgets"
+    );
+
+    expect(githubClient.createBudget).not.toHaveBeenCalled();
+    expect(githubClient.updateBudget).not.toHaveBeenCalled();
+  });
+
+  test("continues in validation-only mode when fetching existing budgets fails in dry-run mode (dry-run=true)", async () => {
+    const budgets = [{ username: "alice", budget: 100 }];
+
+    const githubClient = {
+      getExistingBudgets: jest.fn().mockRejectedValue(new Error("API unavailable")),
+      createBudget: jest.fn().mockResolvedValue({}),
+      updateBudget: jest.fn().mockResolvedValue({})
+    };
+
+    const config = {
+      enterpriseSlug: "demo-enterprise",
+      dryRun: true
+    };
+
     const result = await syncService.sync(budgets, githubClient, config);
 
     expect(logger.warning).toHaveBeenCalledWith(
-      "Unable to fetch existing budgets. Running in local mode."
+      expect.stringContaining("validation-only mode")
     );
     expect(result.created).toHaveLength(1);
-    expect(githubClient.createBudget).toHaveBeenCalledTimes(1);
+    expect(githubClient.createBudget).not.toHaveBeenCalled();
+    expect(githubClient.updateBudget).not.toHaveBeenCalled();
   });
 
   test("captures per-budget API failures in result.failed", async () => {

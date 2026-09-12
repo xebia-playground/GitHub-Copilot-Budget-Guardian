@@ -9,21 +9,35 @@ class GitHubClient {
   async getExistingBudgets(enterprise) {
     logger.info("Fetching existing Copilot budgets...");
 
-    const response = await this.octokit.request(
-      "GET /enterprises/{enterprise}/settings/billing/budgets",
-      {
-        enterprise,
-        per_page: 100
-      }
-    );
+    const allBudgets = [];
+    let page = 1;
+    let hasMorePages = true;
 
-    (response.data.budgets || []).forEach((budget) => {
-      logger.info(
-        `${budget.budget_scope} | ${budget.budget_entity_name} | ${budget.budget_amount}`
+    while (hasMorePages) {
+      const response = await this.octokit.request(
+        "GET /enterprises/{enterprise}/settings/billing/budgets",
+        {
+          enterprise,
+          per_page: 100,
+          page
+        }
       );
-    });
 
-    return response.data.budgets || [];
+      const budgets = response.data.budgets || [];
+      allBudgets.push(...budgets);
+
+      budgets.forEach((budget) => {
+        logger.info(
+          `${budget.budget_scope} | ${budget.budget_entity_name} | ${budget.budget_amount}`
+        );
+      });
+
+      hasMorePages = budgets.length === 100;
+      page++;
+    }
+
+    logger.success(`Fetched ${allBudgets.length} total existing budgets (across all pages).`);
+    return allBudgets;
   }
 
   async createBudget(enterprise, payload) {

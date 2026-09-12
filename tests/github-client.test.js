@@ -37,12 +37,64 @@ describe("github-client", () => {
 
     expect(request).toHaveBeenCalledWith(
       "GET /enterprises/{enterprise}/settings/billing/budgets",
-      { enterprise: "ent", per_page: 100 }
+      { enterprise: "ent", per_page: 100, page: 1 }
     );
     expect(result).toEqual(budgets);
     expect(logger.info).toHaveBeenCalledWith(
       "user | alice | 100"
     );
+  });
+
+  test("getExistingBudgets fetches multiple pages until exhausted", async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      budget_scope: "user",
+      budget_entity_name: `user${i}`,
+      budget_amount: 100
+    }));
+
+    const page2 = Array.from({ length: 50 }, (_, i) => ({
+      id: 100 + i,
+      budget_scope: "user",
+      budget_entity_name: `user${100 + i}`,
+      budget_amount: 100
+    }));
+
+    request
+      .mockResolvedValueOnce({ data: { budgets: page1 } })
+      .mockResolvedValueOnce({ data: { budgets: page2 } });
+
+    const result = await client.getExistingBudgets("ent");
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenNthCalledWith(1,
+      "GET /enterprises/{enterprise}/settings/billing/budgets",
+      { enterprise: "ent", per_page: 100, page: 1 }
+    );
+    expect(request).toHaveBeenNthCalledWith(2,
+      "GET /enterprises/{enterprise}/settings/billing/budgets",
+      { enterprise: "ent", per_page: 100, page: 2 }
+    );
+    expect(result).toHaveLength(150);
+    expect(logger.success).toHaveBeenCalledWith(
+      "Fetched 150 total existing budgets (across all pages)."
+    );
+  });
+
+  test("getExistingBudgets stops pagination when less than per_page results returned", async () => {
+    const budgets = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      budget_scope: "user",
+      budget_entity_name: `user${i}`,
+      budget_amount: 100
+    }));
+
+    request.mockResolvedValue({ data: { budgets } });
+
+    const result = await client.getExistingBudgets("ent");
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(50);
   });
 
   test("getExistingBudgets returns empty list when response has no budgets", async () => {
@@ -51,6 +103,9 @@ describe("github-client", () => {
     const result = await client.getExistingBudgets("ent");
 
     expect(result).toEqual([]);
+    expect(logger.success).toHaveBeenCalledWith(
+      "Fetched 0 total existing budgets (across all pages)."
+    );
   });
 
   test("createBudget sends expected payload defaults", async () => {

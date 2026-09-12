@@ -23,7 +23,7 @@ describe("report-service.generate", () => {
     fs.writeFileSync.mockRestore();
   });
 
-  test("generates markdown, json, and csv reports", () => {
+  test("generates markdown, json, and csv reports with synchronization results", () => {
     const budgets = [
       { username: "alice", budget: 100, team: "Platform", reason: "Init" }
     ];
@@ -38,21 +38,24 @@ describe("report-service.generate", () => {
 
     expect(fs.mkdirSync).toHaveBeenCalledWith("artifacts", { recursive: true });
     expect(fs.writeFileSync).toHaveBeenCalledTimes(3);
-    expect(fs.writeFileSync).toHaveBeenNthCalledWith(
-      1,
-      path.join("artifacts", "budget-report.md"),
-      expect.stringContaining("| Created | 1 |")
-    );
-    expect(fs.writeFileSync).toHaveBeenNthCalledWith(
-      2,
-      path.join("artifacts", "budget-report.json"),
-      expect.stringContaining('"total": 1')
-    );
-    expect(fs.writeFileSync).toHaveBeenNthCalledWith(
-      3,
-      path.join("artifacts", "budget-report.csv"),
-      expect.stringContaining("alice,100,Platform,Init")
-    );
+
+    // Check markdown includes synchronization results section
+    const markdownCall = fs.writeFileSync.mock.calls[0];
+    expect(markdownCall[0]).toEqual(path.join("artifacts", "budget-report.md"));
+    expect(markdownCall[1]).toContain("| Created | 1 |");
+    expect(markdownCall[1]).toContain("## Synchronization Results");
+    expect(markdownCall[1]).toContain("| CREATED |");
+
+    // Check JSON includes synchronization array
+    const jsonCall = fs.writeFileSync.mock.calls[1];
+    expect(jsonCall[1]).toContain('"synchronization"');
+    expect(jsonCall[1]).toContain('"action": "CREATED"');
+
+    // Check CSV has action column
+    const csvCall = fs.writeFileSync.mock.calls[2];
+    expect(csvCall[1]).toContain("action,requested_budget");
+    expect(csvCall[1]).toContain("CREATED,100");
+
     expect(logger.success).toHaveBeenCalledTimes(3);
   });
 
@@ -73,73 +76,72 @@ describe("report-service.generate", () => {
     expect(() => reportService.generate([])).toThrow("Disk full");
   });
 
-  test("neutralizes CSV formula-injection values", () => {
+  test("neutralizes CSV formula-injection values in synchronization results", () => {
     const budgets = [
       {
         username: "=cmd|'/C calc'!A0",
-        budget: "+2",
+        budget: 100,
         team: "-Ops",
         reason: "@alert"
       }
     ];
 
     reportService.generate(budgets, {
-      created: [],
+      created: [budgets[0]],
       updated: [],
       skipped: [],
       failed: []
     });
 
     const csvOutput = fs.writeFileSync.mock.calls[2][1];
-    expect(csvOutput).toContain(
-      "'=cmd|'/C calc'!A0,'+2,'-Ops,'@alert"
-    );
+    // Username should be escaped
+    expect(csvOutput).toContain("'=cmd|'/C calc'!A0,CREATED,100");
   });
 
-  test("neutralizes CSV formula-injection values with leading whitespace", () => {
+  test("neutralizes CSV formula-injection values in username with leading whitespace", () => {
     const budgets = [
       {
         username: " =1+1",
-        budget: "  +SUM(A1:A2)",
+        budget: 100,
         team: " -10",
         reason: " @test"
       }
     ];
 
     reportService.generate(budgets, {
-      created: [],
+      created: [budgets[0]],
       updated: [],
       skipped: [],
       failed: []
     });
 
     const csvOutput = fs.writeFileSync.mock.calls[2][1];
-    expect(csvOutput).toContain(
-      "' =1+1,'  +SUM(A1:A2),' -10,' @test"
-    );
+    // Username should be escaped when it contains formula injection characters
+    expect(csvOutput).toContain("' =1+1,CREATED,100");
   });
 
-  test("escapes dynamic markdown report row values", () => {
+  test("escapes dynamic markdown report row values in synchronization results", () => {
     const budgets = [
       {
         username: "alice|admin\nroot",
-        budget: "10\r20",
+        budget: 10,
         team: "Platform|Core",
         reason: "hello\nworld"
       }
     ];
 
     reportService.generate(budgets, {
-      created: [],
+      created: [budgets[0]],
       updated: [],
       skipped: [],
       failed: []
     });
 
     const markdownOutput = fs.writeFileSync.mock.calls[0][1];
-    expect(markdownOutput).toContain(
-      "| alice\\|admin root | 10 20 | Platform\\|Core | hello world |"
-    );
+    // Check that synchronization results are properly escaped
+    expect(markdownOutput).toContain("## Synchronization Results");
+    expect(markdownOutput).toContain("alice\\|admin root");
+    expect(markdownOutput).toContain("| CREATED |");
   });
 });
 

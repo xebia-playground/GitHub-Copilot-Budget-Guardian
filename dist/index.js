@@ -1940,6 +1940,9 @@ var require_report_service = __commonJS({
        * Generates budget-report.md, budget-report.csv, and budget-report.json
        * under the artifacts/ directory.
        *
+       * Reports include per-user synchronization results (created, updated, skipped, failed).
+       * This provides an audit trail of what actions were taken during the synchronization.
+       *
        * @param {Array<object>} budgets - Array of budget records from the CSV file
        * @param {object} [result={}] - Sync result containing created, updated, skipped, failed arrays
        * @returns {void}
@@ -1955,6 +1958,39 @@ var require_report_service = __commonJS({
           failed: result.failed?.length || 0,
           generated: (/* @__PURE__ */ new Date()).toISOString()
         };
+        const userStatus = /* @__PURE__ */ new Map();
+        result.created?.forEach((u) => {
+          userStatus.set(u.username, {
+            username: u.username,
+            requestedBudget: u.budget,
+            action: "CREATED",
+            error: null
+          });
+        });
+        result.updated?.forEach((u) => {
+          userStatus.set(u.user, {
+            username: u.user,
+            previousBudget: u.from,
+            requestedBudget: u.to,
+            action: "UPDATED",
+            error: null
+          });
+        });
+        result.skipped?.forEach((u) => {
+          userStatus.set(u.username, {
+            username: u.username,
+            requestedBudget: u.budget,
+            action: "SKIPPED",
+            error: null
+          });
+        });
+        result.failed?.forEach((u) => {
+          userStatus.set(u.user, {
+            username: u.user,
+            action: "FAILED",
+            error: u.error
+          });
+        });
         const markdown = `# GitHub Copilot Budget Guardian Report
 
 ## Summary
@@ -1968,7 +2004,20 @@ var require_report_service = __commonJS({
 | Failed | ${summary.failed} |
 | Generated | ${summary.generated} |
 
-## Budget Details
+## Synchronization Results
+
+| Username | Requested Budget | Previous Budget | Action | Error |
+|----------|------------------:|-----------------|--------|-------|
+${Array.from(userStatus.values()).map(
+          (u) => {
+            const requestedBudget = u.requestedBudget ? escapeMarkdownCell(u.requestedBudget) : "\u2014";
+            const previousBudget = u.previousBudget ? escapeMarkdownCell(u.previousBudget) : "\u2014";
+            const error = u.error ? escapeMarkdownCell(u.error) : "\u2014";
+            return `| ${escapeMarkdownCell(u.username)} | ${requestedBudget} | ${previousBudget} | ${u.action} | ${error} |`;
+          }
+        ).join("\n")}
+
+## Budget Input Data
 
 | Username | Budget | Team | Reason |
 |----------|-------:|------|--------|
@@ -1982,15 +2031,19 @@ ${budgets.map(
           JSON.stringify(
             {
               summary,
-              budgets
+              synchronization: Array.from(userStatus.values()),
+              input: budgets
             },
             null,
             2
           )
         );
-        let csv = "username,budget,team,reason\n";
-        budgets.forEach((u) => {
-          csv += `${csvField(u.username)},${csvField(u.budget)},${csvField(u.team)},${csvField(u.reason)}
+        let csv = "username,action,requested_budget,previous_budget,error\n";
+        Array.from(userStatus.values()).forEach((u) => {
+          const requestedBudget = u.requestedBudget ?? "";
+          const previousBudget = u.previousBudget ?? "";
+          const error = u.error ?? "";
+          csv += `${csvField(u.username)},${csvField(u.action)},${csvField(requestedBudget)},${csvField(previousBudget)},${csvField(error)}
 `;
         });
         fs.writeFileSync(
@@ -2090,6 +2143,7 @@ var require_sync_service = __commonJS({
           failed: []
         };
         let existingBudgets = [];
+        let fetchFailed = false;
         if (githubClient && config2.enterpriseSlug) {
           try {
             logger2.info(
@@ -2132,8 +2186,14 @@ var require_sync_service = __commonJS({
                 )}`
               );
             }
+            fetchFailed = true;
+            if (!config2.dryRun) {
+              throw new Error(
+                "Unable to retrieve existing Copilot budgets from GitHub Enterprise. Synchronization was stopped to prevent changes based on incomplete Enterprise state. Please verify GitHub Enterprise connectivity and PAT permissions, then retry."
+              );
+            }
             logger2.warning(
-              "Unable to fetch existing budgets. Running in local mode."
+              "Unable to fetch existing budgets. Proceeding in validation-only mode. Actual budget operations will not be performed."
             );
           }
         }
@@ -2250,19 +2310,30 @@ var require_github_client = __commonJS({
       }
       async getExistingBudgets(enterprise) {
         logger2.info("Fetching existing Copilot budgets...");
-        const response = await this.octokit.request(
-          "GET /enterprises/{enterprise}/settings/billing/budgets",
-          {
-            enterprise,
-            per_page: 100
-          }
-        );
-        (response.data.budgets || []).forEach((budget) => {
-          logger2.info(
-            `${budget.budget_scope} | ${budget.budget_entity_name} | ${budget.budget_amount}`
+        const allBudgets = [];
+        let page = 1;
+        let hasMorePages = true;
+        while (hasMorePages) {
+          const response = await this.octokit.request(
+            "GET /enterprises/{enterprise}/settings/billing/budgets",
+            {
+              enterprise,
+              per_page: 100,
+              page
+            }
           );
-        });
-        return response.data.budgets || [];
+          const budgets = response.data.budgets || [];
+          allBudgets.push(...budgets);
+          budgets.forEach((budget) => {
+            logger2.info(
+              `${budget.budget_scope} | ${budget.budget_entity_name} | ${budget.budget_amount}`
+            );
+          });
+          hasMorePages = budgets.length === 100;
+          page++;
+        }
+        logger2.success(`Fetched ${allBudgets.length} total existing budgets (across all pages).`);
+        return allBudgets;
       }
       async createBudget(enterprise, payload) {
         logger2.info(`Creating budget for ${payload.user}`);

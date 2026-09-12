@@ -330,6 +330,34 @@ on:
   - Symptom: no Email/Teams/Slack message.
   - Fix: verify channel-specific secrets and webhook values.
 
+- CSV file not found
+  - Symptom: action fails with "file not found" or "ENOENT" error.
+  - Fix: verify the budget-file path is correct and the file exists in the repository root.
+
+- CSV encoding issues
+  - Symptom: action fails with parsing errors or displays corrupted characters.
+  - Fix: ensure your CSV file is saved in UTF-8 encoding. Some spreadsheet applications default to other encodings.
+
+- Webhook URL format error
+  - Symptom: Slack or Teams notification fails with "invalid URL" or "malformed" error.
+  - Fix: verify your webhook URLs are complete HTTPS URLs (not truncated) and valid from your Slack/Teams workspace.
+
+- GitHub API rate limiting
+  - Symptom: action fails with "API rate limit exceeded" error after multiple runs.
+  - Fix: GitHub API has rate limits. If running frequently, space out executions or reduce workflow frequency.
+
+- Workflow permissions error
+  - Symptom: GitHub Actions report permission denied when uploading artifacts.
+  - Fix: ensure your workflow has `permissions: { contents: read }` or necessary artifact upload permissions configured.
+
+## Limitations
+
+- **Budget fetching:** The action fetches up to 100 existing budgets per API call. Enterprises with more than 100 users assigned Copilot budgets will only sync the first 100. Plan pagination requirements if your organization exceeds this threshold.
+
+- **Notification delivery:** Email, Slack, and Teams notifications are best-effort. If external services (SMTP, webhooks) are unavailable or misconfigured, notifications will fail gracefully without affecting budget synchronization.
+
+- **Dry-run scope:** Dry-run mode validates your CSV file, compares with existing Enterprise budgets, and generates reports, but does not test SMTP connectivity or webhook URLs. Validate external notification configuration separately if needed.
+
 ## Security
 
 - Keep all credentials in GitHub Secrets.
